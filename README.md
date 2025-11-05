@@ -254,6 +254,11 @@ SIMILARITY_THRESHOLD=0.7
 
 # Logging
 LOG_LEVEL=info
+
+# Auto-tagging
+AUTOTAG_ENABLED=true
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-3.5-turbo
 ```
 
 ### API Authentication

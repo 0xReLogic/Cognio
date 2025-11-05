@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "info"
 
+    # Auto-tagging
+    autotag_enabled: bool = False
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-3.5-turbo"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     def get_db_dir(self) -> Path:

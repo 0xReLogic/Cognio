@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from .autotag import generate_tags
 from .config import settings
 from .database import db
 from .embeddings import embedding_service
@@ -56,6 +57,15 @@ class MemoryService:
         if len(request.text.split()) > settings.summarize_threshold:
             summary = summarize(request.text)
 
+        # Auto-generate tags if none are provided
+        tags = request.tags
+        if not tags and settings.autotag_enabled:
+            autotag_result = generate_tags(request.text)
+            if autotag_result["tags"]:
+                tags.extend(autotag_result["tags"])
+            if autotag_result["category"]:
+                tags.append(autotag_result["category"])
+
         # Create memory object
         memory_id = str(uuid.uuid4())
         timestamp = get_timestamp()
@@ -67,7 +77,7 @@ class MemoryService:
             text_hash=text_hash,
             embedding=embedding,
             project=request.project,
-            tags=request.tags,
+            tags=tags,
             created_at=timestamp,
             updated_at=timestamp,
         )
