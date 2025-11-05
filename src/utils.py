@@ -16,4 +16,4 @@ def get_timestamp() -> int:
 
 def format_timestamp(timestamp: int) -> str:
     """Convert Unix timestamp to ISO 8601 string."""
-    return datetime.fromtimestamp(timestamp).isoformat() + "Z"
+    return datetime.utcfromtimestamp(timestamp).isoformat() + "Z"
