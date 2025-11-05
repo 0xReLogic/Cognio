@@ -242,6 +242,7 @@ DB_PATH=./data/memory.db
 # Embeddings
 EMBED_MODEL=paraphrase-multilingual-mpnet-base-v2
 EMBED_DEVICE=cpu
+EMBEDDING_CACHE_PATH=./data/embedding_cache.pkl
 
 # API
 API_HOST=0.0.0.0

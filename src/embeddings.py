@@ -1,6 +1,8 @@
 """Embedding generation for semantic search."""
 
 import logging
+import pickle
+from pathlib import Path
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -19,6 +21,24 @@ class EmbeddingService:
         self.device = settings.embed_device
         self.model: SentenceTransformer | None = None
         self.embedding_dim = 768  # Multilingual mpnet uses 768 dimensions
+        self.cache: dict[str, list[float]] = {}
+        self.load_cache()
+
+    def load_cache(self) -> None:
+        """Load the embedding cache from disk."""
+        cache_path = Path(settings.embedding_cache_path)
+        if cache_path.exists():
+            with open(cache_path, "rb") as f:
+                self.cache = pickle.load(f)
+            logger.info(f"Loaded {len(self.cache)} embeddings from cache.")
+
+    def save_cache(self) -> None:
+        """Save the embedding cache to disk."""
+        cache_path = Path(settings.embedding_cache_path)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(cache_path, "wb") as f:
+            pickle.dump(self.cache, f)
+        logger.info(f"Saved {len(self.cache)} embeddings to cache.")
 
     def load_model(self) -> None:
         """Load the sentence-transformer model."""
@@ -28,22 +48,32 @@ class EmbeddingService:
             self.embedding_dim = self.model.get_sentence_embedding_dimension()
             logger.info(f"Model loaded. Embedding dimension: {self.embedding_dim}")
 
-    def encode(self, text: str) -> list[float]:
+    def encode(self, text: str, text_hash: str) -> list[float]:
         """
         Generate embedding for a single text.
 
         Args:
             text: Input text to encode
+            text_hash: The SHA256 hash of the text.
 
         Returns:
             List of floats representing the embedding vector
         """
+        # Check if the embedding is in the cache
+        if text_hash in self.cache:
+            return self.cache[text_hash]
+
         if self.model is None:
             self.load_model()
 
         assert self.model is not None
         embedding = self.model.encode(text, convert_to_numpy=True)
-        return embedding.tolist()
+        embedding_list = embedding.tolist()
+
+        # Add the new embedding to the cache
+        self.cache[text_hash] = embedding_list
+
+        return embedding_list
 
     def encode_batch(self, texts: list[str]) -> list[list[float]]:
         """
