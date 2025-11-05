@@ -50,6 +50,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Shutdown
     logger.info("Shutting down...")
+    embedding_service.save_cache()
     db.close()
 
 

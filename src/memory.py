@@ -50,7 +50,7 @@ class MemoryService:
             return existing.id, True, "duplicate"
 
         # Generate embedding
-        embedding = embedding_service.encode(request.text)
+        embedding = embedding_service.encode(request.text, text_hash)
 
         # Generate summary if text is long enough
         summary = None
@@ -114,7 +114,8 @@ class MemoryService:
             List of matching memories with scores
         """
         # Generate query embedding
-        query_embedding = embedding_service.encode(query)
+        query_hash = generate_text_hash(query)
+        query_embedding = embedding_service.encode(query, query_hash)
 
         # Get all memories (with optional filters)
         all_memories = db.get_all_memories()
@@ -204,7 +205,8 @@ class MemoryService:
             total_count = len(all_memories)
 
             # Generate query embedding and calculate scores
-            query_embedding = embedding_service.encode(search_query)
+            query_hash = generate_text_hash(search_query)
+            query_embedding = embedding_service.encode(search_query, query_hash)
             scored_memories = []
 
             for memory in all_memories:

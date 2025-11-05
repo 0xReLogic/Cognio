@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # Embeddings
     embed_model: str = "paraphrase-multilingual-mpnet-base-v2"
     embed_device: str = "cpu"
+    embedding_cache_path: str = "./data/embedding_cache.pkl"
 
     # API
     api_host: str = "0.0.0.0"
