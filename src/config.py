@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Performance
     max_text_length: int = 10000
     batch_size: int = 32
+    summarize_threshold: int = 50
 
     # Logging
     log_level: str = "info"

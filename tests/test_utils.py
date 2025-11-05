@@ -30,11 +30,11 @@ def test_format_timestamp() -> None:
     ts = 1609459200  # 2021-01-01 00:00:00 UTC
     formatted = format_timestamp(ts)
     assert "2021-01-01" in formatted
-    assert formatted.endswith("Z")
+    assert formatted.endswith("+00:00")
 
 
 def test_format_timestamp_is_utc() -> None:
     """Test timestamp formatting is explicitly UTC."""
     ts = 1609459200  # 2021-01-01 00:00:00 UTC
     formatted = format_timestamp(ts)
-    assert formatted == "2021-01-01T00:00:00Z"
+    assert formatted == "2021-01-01T00:00:00+00:00"
