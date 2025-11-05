@@ -64,6 +64,7 @@ class MemoryResult(BaseModel):
 
     id: str
     text: str
+    summary: str | None = None
     score: float | None = None
     project: str | None = None
     tags: list[str]
@@ -116,6 +117,7 @@ class Memory(BaseModel):
 
     id: str
     text: str
+    summary: str | None = None
     text_hash: str
     embedding: list[float] | None = None
     project: str | None = None

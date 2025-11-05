@@ -5,10 +5,12 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from .autotag import generate_tags
 from .config import settings
 from .database import db
 from .embeddings import embedding_service
 from .models import Memory, MemoryResult, SaveMemoryRequest
+from .summarization import summarize
 from .utils import format_timestamp, generate_text_hash, get_timestamp
 
 logger = logging.getLogger(__name__)
@@ -50,6 +52,20 @@ class MemoryService:
         # Generate embedding
         embedding = embedding_service.encode(request.text)
 
+        # Generate summary if text is long enough
+        summary = None
+        if len(request.text.split()) > settings.summarize_threshold:
+            summary = summarize(request.text)
+
+        # Auto-generate tags if none are provided
+        tags = request.tags
+        if not tags and settings.autotag_enabled:
+            autotag_result = generate_tags(request.text)
+            if autotag_result["tags"]:
+                tags.extend(autotag_result["tags"])
+            if autotag_result["category"]:
+                tags.append(autotag_result["category"])
+
         # Create memory object
         memory_id = str(uuid.uuid4())
         timestamp = get_timestamp()
@@ -57,10 +73,11 @@ class MemoryService:
         memory = Memory(
             id=memory_id,
             text=request.text,
+            summary=summary,
             text_hash=text_hash,
             embedding=embedding,
             project=request.project,
-            tags=request.tags,
+            tags=tags,
             created_at=timestamp,
             updated_at=timestamp,
         )
@@ -147,6 +164,7 @@ class MemoryService:
             MemoryResult(
                 id=memory.id,
                 text=memory.text,
+                summary=memory.summary,
                 score=round(score, 4),
                 project=memory.project,
                 tags=memory.tags,
@@ -204,6 +222,7 @@ class MemoryService:
                 MemoryResult(
                     id=memory.id,
                     text=memory.text,
+                    summary=memory.summary,
                     score=round(score, 4),
                     project=memory.project,
                     tags=memory.tags,
@@ -220,6 +239,7 @@ class MemoryService:
                 MemoryResult(
                     id=memory.id,
                     text=memory.text,
+                    summary=memory.summary,
                     score=None,
                     project=memory.project,
                     tags=memory.tags,

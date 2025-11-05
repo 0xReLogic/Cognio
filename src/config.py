@@ -27,9 +27,15 @@ class Settings(BaseSettings):
     # Performance
     max_text_length: int = 10000
     batch_size: int = 32
+    summarize_threshold: int = 50
 
     # Logging
     log_level: str = "info"
+
+    # Auto-tagging
+    autotag_enabled: bool = False
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-3.5-turbo"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
