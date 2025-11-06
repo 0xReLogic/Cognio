@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cognio - Memory Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app" id="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>Cognio</h1>
+                <p>Memory Dashboard</p>
+            </div>
+            
+            <nav class="nav">
+                <a href="#" class="nav-item active" data-view="memories">
+                    <span class="icon">📝</span>
+                    Memories
+                </a>
+                <a href="#" class="nav-item" data-view="stats">
+                    <span class="icon">📊</span>
+                    Statistics
+                </a>
+                <a href="#" class="nav-item" data-view="settings">
+                    <span class="icon">⚙️</span>
+                    Settings
+                </a>
+            </nav>
+
+            <div class="theme-toggle">
+                <button id="themeToggle" class="theme-btn">
+                    <span class="icon theme-icon"></span>
+                    <span class="label">Dark Mode</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Header -->
+            <header class="header">
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="Search memories by meaning..." class="search-input">
+                    <button id="searchBtn" class="btn btn-primary">Search</button>
+                </div>
+                <button id="addMemoryBtn" class="btn btn-success">+ Add Memory</button>
+            </header>
+
+            <!-- Views Container -->
+            <div class="content">
+                <!-- Memories View -->
+                <div id="memoriesView" class="view active">
+                    <!-- Filters -->
+                    <div class="filters">
+                        <select id="projectFilter" class="filter-select">
+                            <option value="">All Projects</option>
+                        </select>
+                        <select id="tagFilter" class="filter-select">
+                            <option value="">All Tags</option>
+                        </select>
+                        <select id="sortFilter" class="filter-select">
+                            <option value="recent">Most Recent</option>
+                            <option value="oldest">Oldest</option>
+                            <option value="relevance">Relevance</option>
+                        </select>
+                        <button id="bulkSelectBtn" class="btn btn-secondary">Bulk Select</button>
+                    </div>
+
+                    <!-- Bulk Actions (hidden by default) -->
+                    <div id="bulkActions" class="bulk-actions hidden">
+                        <span id="selectedCount">0 selected</span>
+                        <button id="bulkTagBtn" class="btn btn-sm">Add Tags</button>
+                        <button id="bulkDeleteBtn" class="btn btn-sm btn-danger">Delete</button>
+                        <button id="cancelBulkBtn" class="btn btn-sm">Cancel</button>
+                    </div>
+
+                    <!-- Memories List -->
+                    <div id="memoriesList" class="memories-list">
+                        <div class="loading">Loading memories...</div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <button id="prevPage" class="btn btn-sm" disabled>Previous</button>
+                        <span id="pageInfo">Page 1 of 1</span>
+                        <button id="nextPage" class="btn btn-sm" disabled>Next</button>
+                    </div>
+                </div>
+
+                <!-- Statistics View -->
+                <div id="statsView" class="view">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Memories</h3>
+                            <p class="stat-value" id="totalMemories">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Projects</h3>
+                            <p class="stat-value" id="totalProjects">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Tags</h3>
+                            <p class="stat-value" id="totalTags">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Avg Memory Size</h3>
+                            <p class="stat-value" id="avgSize">-</p>
+                        </div>
+                    </div>
+
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <h3>Memories by Project</h3>
+                            <div id="projectChart" class="chart"></div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Popular Tags</h3>
+                            <div id="tagCloud" class="tag-cloud"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <div id="settingsView" class="view">
+                    <div class="settings-section">
+                        <h2>API Configuration</h2>
+                        <div class="form-group">
+                            <label>API URL</label>
+                            <input type="text" id="apiUrl" value="http://localhost:8080" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>API Key (Optional)</label>
+                            <input type="password" id="apiKey" placeholder="Enter API key if required" class="form-input">
+                        </div>
+                        <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+                    </div>
+
+                    <div class="settings-section">
+                        <h2>Display Preferences</h2>
+                        <div class="form-group">
+                            <label>Memories per page</label>
+                            <select id="pageSize" class="form-input">
+                                <option value="10">10</option>
+                                <option value="20" selected>20</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add/Edit Memory Modal -->
+    <div id="memoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Memory</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Text *</label>
+                    <textarea id="memoryText" rows="6" class="form-input" placeholder="Enter your memory here..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Project</label>
+                        <input type="text" id="memoryProject" class="form-input" placeholder="e.g., LEARNING">
+                    </div>
+                    <div class="form-group">
+                        <label>Tags (comma-separated)</label>
+                        <input type="text" id="memoryTags" class="form-input" placeholder="e.g., python, fastapi">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="autoTag" checked>
+                        Auto-generate tags (requires API key)
+                    </label>
+                </div>
+                <div class="preview-section">
+                    <h4>Preview</h4>
+                    <div id="memoryPreview" class="preview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveMemory" class="btn btn-primary">Save</button>
+                <button class="modal-close btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

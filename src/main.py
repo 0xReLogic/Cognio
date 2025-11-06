@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.security import APIKeyHeader
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import db
@@ -89,6 +90,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve Web UI
+from pathlib import Path
+
+web_ui_path = Path(__file__).parent.parent / "web-ui"
+if web_ui_path.exists():
+    app.mount("/ui", StaticFiles(directory=str(web_ui_path), html=True), name="ui")
+    logger.info(f"Web UI available at /ui")
 
 
 # Request logging middleware

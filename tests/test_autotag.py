@@ -13,11 +13,16 @@ class TestAutoTag(unittest.TestCase):
     def setUp(self) -> None:
         """Set up test environment."""
         settings.autotag_enabled = True
-        settings.openai_api_key = "test-key"
+        settings.llm_provider = "groq"
+        settings.groq_api_key = "test-key"
 
-    @patch("src.autotag.client")
-    def test_generate_tags(self, mock_client: MagicMock) -> None:
+    @patch("src.autotag.get_client")
+    def test_generate_tags(self, mock_get_client: MagicMock) -> None:
         """Test tag generation."""
+        # Mock the client
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        
         # Mock the OpenAI API response
         mock_response = MagicMock()
         mock_choice = MagicMock()
