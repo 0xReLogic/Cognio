@@ -1,6 +1,10 @@
 # Project specification
 project.txt
 ROADMAP.md
+
+# Auto-generated AI context
+cognio.md
+
 # Python
 __pycache__/
 *.py[cod]

@@ -14,6 +14,57 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRoot = path.dirname(__dirname);
 
+// Auto-generate cognio.md file for AI context
+import fs from 'fs';
+const cognioMdPath = path.join(workspaceRoot, 'cognio.md');
+const cognioContent = `# Cognio Memory System
+
+This workspace has access to **Cognio** - a semantic memory system via MCP.
+
+## Available Tools (11 total)
+
+### Core Memory Operations
+- **save_memory** - Save text with optional project/tags
+- **search_memory** - Semantic search across memories
+- **list_memories** - Browse all memories with filters
+- **get_memory_stats** - Get statistics and insights
+- **archive_memory** - Soft delete a memory by ID
+- **delete_memory** - Permanently delete a memory
+- **export_memories** - Export to JSON or Markdown
+
+### Project Context Management
+- **set_active_project** - Set active project (auto-applies to operations)
+- **get_active_project** - Check current active project
+- **list_projects** - See all available projects with memory counts
+
+### Utilities
+- **summarize_text** - Summarize long text (extractive/abstractive)
+
+## Usage
+
+Use these tools naturally when:
+- User asks about past work ("what did we do before?")
+- Solving problems worth remembering
+- Need to recall project-specific context
+
+## Active Project System
+
+Set a project to auto-filter all operations:
+\`\`\`
+set_active_project("my-project")
+save_memory("solution here")  // auto-saves to my-project
+search_memory("past solution") // auto-searches in my-project only
+\`\`\`
+
+Keep memories organized by project to avoid context mixing.
+`;
+
+try {
+  fs.writeFileSync(cognioMdPath, cognioContent, 'utf8');
+} catch (error) {
+  // Silent fail - not critical
+}
+
 // Auto-setup: Generate settings for all AI clients (silent mode)
 try {
   const setupScript = path.join(workspaceRoot, 'scripts', 'setup-clients.js');

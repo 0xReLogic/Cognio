@@ -2,31 +2,36 @@
 
 MCP (Model Context Protocol) server wrapper for Cognio semantic memory.
 
-## Installation
+## Quick Setup
+
+Run the auto-setup script to configure all supported AI clients:
 
 ```bash
-npm install -g cognio-mcp-server
+npm run setup
 ```
 
-Or use directly with npx:
+This automatically generates MCP configurations for:
+- Claude Desktop
+- Cursor
+- Continue.dev
+- Cline
+- Windsurf
+- Kiro
+- Gemini CLI
 
-```bash
-npx cognio-mcp-server
-```
+## Manual Configuration
 
-## Usage
+If you prefer to configure manually, add Cognio to your client's MCP config:
 
-Add to your MCP configuration (e.g., `.vscode/mcp.json`):
+### VS Code (GitHub Copilot)
 
+Add to `.vscode/mcp.json`:
 ```json
 {
   "servers": {
     "cognio": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "cognio-mcp-server"
-      ],
+      "command": "node",
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -35,16 +40,118 @@ Add to your MCP configuration (e.g., `.vscode/mcp.json`):
 }
 ```
 
-Or use local path during development:
+### Claude Desktop
 
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%/Claude/claude_desktop_config.json` (Windows):
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "cognio": {
       "command": "node",
-      "args": [
-        "/workspaces/Cognio/mcp-server/index.js"
-      ],
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "env": {
+        "COGNIO_API_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `~/.cursor/mcp_settings.json`:
+```json
+{
+  "mcpServers": {
+    "cognio": {
+      "command": "node",
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "env": {
+        "COGNIO_API_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+### Continue.dev
+
+Add to `~/.continue/config.json`:
+```json
+{
+  "mcpServers": [
+    {
+      "name": "cognio",
+      "command": "node",
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "env": {
+        "COGNIO_API_URL": "http://localhost:8080"
+      }
+    }
+  ]
+}
+```
+
+### Cline
+
+Add to `~/.cline/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "cognio": {
+      "command": "node",
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "env": {
+        "COGNIO_API_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+### Windsurf
+
+Add to `~/.windsurf/mcp_config.json`:
+```json
+{
+  "mcpServers": {
+    "cognio": {
+      "command": "node",
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "env": {
+        "COGNIO_API_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+### Kiro
+
+Add to `~/.kiro/settings/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "cognio": {
+      "command": "node",
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "env": {
+        "COGNIO_API_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+### Gemini CLI
+
+Add to `~/gemini/settings.json`:
+```json
+{
+  "mcpServers": {
+    "cognio": {
+      "command": "node",
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -92,6 +199,42 @@ Archive (soft delete) a memory by ID.
 
 Parameters:
 - `memory_id` (required): The memory ID to archive
+
+### delete_memory
+Permanently delete a memory by ID.
+
+Parameters:
+- `memory_id` (required): The memory ID to delete
+
+### export_memories
+Export memories to JSON or Markdown format.
+
+Parameters:
+- `format` (optional): Export format - 'json' or 'markdown' (default: json)
+- `project` (optional): Filter by project name
+
+### summarize_text
+Summarize long text using extractive or abstractive methods.
+
+Parameters:
+- `text` (required): The text to summarize
+- `num_sentences` (optional): Number of sentences in summary (default: 3, max: 10)
+
+### set_active_project
+Set the active project context for all subsequent operations.
+
+Parameters:
+- `project` (required): Project name to activate
+
+### get_active_project
+Get the currently active project context.
+
+No parameters required.
+
+### list_projects
+List all available projects in the database.
+
+No parameters required.
 
 ## Environment Variables
 

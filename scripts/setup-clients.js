@@ -2,13 +2,7 @@
 
 /**
  * Auto-setup script for Cognio MCP Server
- * Automatically generates configuration for:
- * - VS Code (Copilot)
- * - Cursor
- * - Claude Desktop
- * - Continue.dev
- * - Cline
- * - Gemini CLI
+ * Automatically generates configuration for all supported AI clients
  */
 
 import fs from 'fs';
@@ -24,18 +18,6 @@ const workspaceRoot = workspaceDir.endsWith('mcp-server')
 
 // Configuration templates
 const configs = {
-  // VS Code / Copilot settings
-  vscode: {
-    path: path.join(workspaceRoot, '.vscode', 'settings.json'),
-    content: {
-      "github.copilot.chat.codeGeneration.instructions": [
-        {
-          "text": "You have access to Cognio memory tools. Search past work when relevant, save useful solutions for later."
-        }
-      ]
-    }
-  },
-
   // Claude Desktop (Mac/Windows)
   claudeDesktop: {
     mac: path.join(homeDir, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'),
@@ -136,22 +118,6 @@ const configs = {
     }
   },
 
-  // Claude CLI settings
-  claudeCLI: {
-    path: path.join(homeDir, '.claude.json'),
-    content: {
-      "mcpServers": {
-        "cognio": {
-          "command": "node",
-          "args": [path.join(workspaceRoot, "mcp-server", "index.js")],
-          "env": {
-            "COGNIO_API_URL": "http://localhost:8080"
-          }
-        }
-      }
-    }
-  },
-
   // Gemini CLI settings
   geminiCLI: {
     path: path.join(homeDir, 'gemini', 'settings.json'),
@@ -171,50 +137,13 @@ const configs = {
 
 // Instructions for each platform
 const instructions = {
-  copilot: `
-GITHUB COPILOT:
-Cognio memory tools configured. Use naturally when needed.
-`,
-
-  claude: `
-CLAUDE DESKTOP:
-Cognio MCP server configured and ready to use.
-`,
-
-  cursor: `
-CURSOR:
-Cognio MCP server configured and ready to use.
-`,
-
-  continue: `
-CONTINUE.DEV:
-Cognio MCP server configured and ready to use.
-`,
-
-  cline: `
-CLINE:
-Cognio MCP server configured and ready to use.
-`,
-
-  windsurf: `
-WINDSURF:
-Cognio MCP server configured at ~/.windsurf/mcp_config.json
-`,
-
-  kiro: `
-KIRO:
-Cognio MCP server configured at ~/.kiro/settings/mcp.json
-`,
-
-  claudeCLI: `
-CLAUDE CLI:
-Cognio MCP server configured at ~/.claude.json
-`,
-
-  geminiCLI: `
-GEMINI CLI:
-Cognio MCP server configured at ~/gemini/settings.json
-`
+  claude: `CLAUDE DESKTOP: Ready to use`,
+  cursor: `CURSOR: Ready to use`,
+  continue: `CONTINUE.DEV: Ready to use`,
+  cline: `CLINE: Ready to use`,
+  windsurf: `WINDSURF: Ready to use`,
+  kiro: `KIRO: Ready to use`,
+  geminiCLI: `GEMINI CLI: Ready to use`
 };
 
 function ensureDirectoryExists(filePath) {
@@ -277,69 +206,26 @@ function main() {
   console.log('Configuring clients for automatic Cognio integration...\n');
 
   const results = {
-    vscode: setupConfig('vscode', configs.vscode),
     claudeDesktop: setupConfig('claudeDesktop', configs.claudeDesktop),
     cursor: setupConfig('cursor', configs.cursor),
     continue: setupConfig('continue', configs.continue),
     cline: setupConfig('cline', configs.cline),
     windsurf: setupConfig('windsurf', configs.windsurf),
     kiro: setupConfig('kiro', configs.kiro),
-    claudeCLI: setupConfig('claudeCLI', configs.claudeCLI),
     geminiCLI: setupConfig('geminiCLI', configs.geminiCLI)
   };
 
   console.log('\n[SUMMARY]\n');
+  console.log('✓ cognio.md auto-generated (AI context for all tools)\n');
   
-  if (results.vscode) {
-    console.log('VS Code / Copilot:');
-    console.log(instructions.copilot);
-  }
-  
-  if (results.claudeDesktop) {
-    console.log('Claude Desktop:');
-    console.log(instructions.claude);
-  }
-  
-  if (results.cursor) {
-    console.log('Cursor:');
-    console.log(instructions.cursor);
-  }
-  
-  if (results.continue) {
-    console.log('Continue.dev:');
-    console.log(instructions.continue);
-  }
-  
-  if (results.cline) {
-    console.log('Cline:');
-    console.log(instructions.cline);
-  }
+  Object.entries(results).forEach(([name, success]) => {
+    if (success) console.log(`✓ ${name}`);
+  });
 
-  if (results.windsurf) {
-    console.log('Windsurf:');
-    console.log(instructions.windsurf);
-  }
-
-  if (results.kiro) {
-    console.log('Kiro:');
-    console.log(instructions.kiro);
-  }
-
-  if (results.claudeCLI) {
-    console.log('Claude CLI:');
-    console.log(instructions.claudeCLI);
-  }
-
-  if (results.geminiCLI) {
-    console.log('Gemini CLI:');
-    console.log(instructions.geminiCLI);
-  }
-
-  console.log('\n[INFO] Next Steps:');
-  console.log('1. Start Cognio server: npm start (or python -m uvicorn src.main:app)');
-  console.log('2. Restart your IDE/client');
-  console.log('3. Test with: "search my memories for..." or "remember this..."');
-  console.log('\nCognio will now work automatically in the background!\n');
+  console.log('\n[NEXT STEPS]');
+  console.log('1. Start Cognio: python -m uvicorn src.main:app --port 8080');
+  console.log('2. Restart your AI client');
+  console.log('3. cognio.md provides context to all AI tools\n');
 }
 
 main();

@@ -52,40 +52,23 @@ The MCP server automatically configures supported AI clients on first start:
 - Cline
 - Windsurf
 - Kiro
-- Claude CLI
 - Gemini CLI
 
-**How it works:**
-When you add Cognio to your MCP config, it automatically generates settings files for all installed AI clients.
+**Quick Setup:**
 
-**Example: VS Code**
-
-Add to `.vscode/mcp.json`:
-```json
-{
-  "servers": {
-    "cognio": {
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
-      "env": {
-        "COGNIO_API_URL": "http://localhost:8080"
-      }
-    }
-  }
-}
-```
-
-On first run, Cognio creates `.vscode/settings.json` with auto-trigger rules for Copilot.
-
-**Manual Setup for Other Clients:**
-
-Run setup script manually:
+Run the auto-setup script to configure all clients at once:
 ```bash
 cd mcp-server
 npm run setup
 ```
 
-This generates configs for all 9 supported clients automatically.
+This generates MCP configs for all 8 supported clients automatically.
+
+**Manual Configuration:**
+
+See [mcp-server/README.md](mcp-server/README.md) for client-specific MCP configuration examples.
+
+On first run, Cognio auto-generates `cognio.md` in your workspace with usage guide for AI tools.
 
 ### 3. Test It
 
@@ -125,9 +108,9 @@ When using the MCP server, you have access to 11 specialized tools:
 | `delete_memory` | Permanently delete a memory by ID |
 | `export_memories` | Export memories to JSON or Markdown |
 | `summarize_text` | Summarize long text (extractive or LLM-based) |
-| **`set_active_project`** | **Set active project context (auto-applies to all operations)** ⭐ |
-| **`get_active_project`** | **View currently active project** ⭐ |
-| **`list_projects`** | **List all available projects from database** ⭐ |
+| **`set_active_project`** | **Set active project context (auto-applies to all operations)** |
+| **`get_active_project`** | **View currently active project** |
+| **`list_projects`** | **List all available projects from database** |
 
 **Active Project Workflow:**
 ```
@@ -233,7 +216,7 @@ uvicorn src.main:app --reload
 
 **v0.2.0** (Current)
 - [x] Auto-tagging with LLM
-- [x] MCP auto-setup for 9 AI clients
+- [x] MCP auto-setup for 8 AI clients
 - [x] LLM integration 
 - [ ] Web UI for memory management
 - [ ] Memory summarization
