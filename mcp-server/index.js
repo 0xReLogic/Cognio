@@ -26,6 +26,9 @@ try {
 // Cognio API base URL
 const COGNIO_API_URL = process.env.COGNIO_API_URL || "http://localhost:8080";
 
+// Active project state (persists during MCP session)
+let activeProject = null;
+
 // Helper function to make API calls to Cognio
 async function cognioRequest(endpoint, method = "GET", body = null) {
   const url = `${COGNIO_API_URL}${endpoint}`;
@@ -223,6 +226,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["memory_id"],
         },
       },
+      {
+        name: "set_active_project",
+        description: "Set the active project context. All subsequent operations (save/search/list) will default to this project unless explicitly overridden. Like switching git branches - keeps you focused on one project at a time.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            project: {
+              type: "string",
+              description: "Project name to activate (e.g., 'Helios-LoadBalancer', 'Cognio-Memory')",
+            },
+          },
+          required: ["project"],
+        },
+      },
+      {
+        name: "get_active_project",
+        description: "Get the currently active project context. Returns the project name that's currently active, or null if none set.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
     ],
   };
 });
@@ -236,26 +261,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "save_memory": {
         const result = await cognioRequest("/memory/save", "POST", {
           text: args.text,
-          project: args.project,
+          project: args.project || activeProject, // Auto-apply active project
           tags: args.tags,
           metadata: args.metadata,
         });
+        
+        let message = JSON.stringify(result, null, 2);
+        if (!args.project && activeProject) {
+          message += `\n\n[INFO] Auto-saved to active project: ${activeProject}`;
+        }
+        
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(result, null, 2),
+              text: message,
             },
           ],
         };
       }
 
       case "search_memory": {
+        const projectToUse = args.project || activeProject;
         const params = new URLSearchParams({
           q: args.query,
           limit: args.limit || 5,
         });
-        if (args.project) params.append("project", args.project);
+        if (projectToUse) params.append("project", projectToUse);
         if (args.tags && args.tags.length > 0) {
           args.tags.forEach(tag => params.append("tags", tag));
         }
@@ -263,7 +295,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const result = await cognioRequest(`/memory/search?${params}`);
         
         // Format results nicely
-        let response = `Found ${result.total} memories:\n\n`;
+        let response = projectToUse && !args.project 
+          ? `[Active Project: ${projectToUse}]\nFound ${result.total} memories:\n\n`
+          : `Found ${result.total} memories:\n\n`;
+          
         result.results.forEach((mem, idx) => {
           response += `${idx + 1}. [Score: ${mem.score.toFixed(3)}]\n`;
           response += `   Text: ${mem.text}\n`;
@@ -285,18 +320,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "list_memories": {
+        const projectToUse = args.project || activeProject;
         const params = new URLSearchParams({
           limit: args.limit || 20,
           offset: args.offset || 0,
         });
-        if (args.project) params.append("project", args.project);
+        if (projectToUse) params.append("project", projectToUse);
         if (args.tags && args.tags.length > 0) {
           args.tags.forEach(tag => params.append("tags", tag));
         }
 
         const result = await cognioRequest(`/memory/list?${params}`);
         
-        let response = `Total: ${result.total} memories (showing ${result.memories.length})\n\n`;
+        let response = projectToUse && !args.project
+          ? `[Active Project: ${projectToUse}]\nTotal: ${result.total} memories (showing ${result.memories.length})\n\n`
+          : `Total: ${result.total} memories (showing ${result.memories.length})\n\n`;
+          
         result.memories.forEach((mem, idx) => {
           response += `${idx + 1}. ${mem.text.substring(0, 100)}...\n`;
           if (mem.project) response += `   Project: ${mem.project}\n`;
@@ -393,6 +432,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: `[OK] Memory ${args.memory_id} permanently deleted`,
+            },
+          ],
+        };
+      }
+
+      case "set_active_project": {
+        activeProject = args.project;
+        return {
+          content: [
+            {
+              type: "text",
+              text: `[OK] Active project set to: ${activeProject}\n\nAll save/search/list operations will now default to this project unless you specify a different one.`,
+            },
+          ],
+        };
+      }
+
+      case "get_active_project": {
+        return {
+          content: [
+            {
+              type: "text",
+              text: activeProject 
+                ? `Current active project: ${activeProject}` 
+                : `No active project set. Use set_active_project to activate one.`,
             },
           ],
         };
