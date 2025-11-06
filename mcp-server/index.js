@@ -123,7 +123,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "save_memory",
-        description: "Save information to long-term semantic memory with automatic tagging and categorization. IMPORTANT: Always specify a project name to keep memories organized and prevent mixing contexts.",
+        description: "Save information to long-term semantic memory with automatic tagging and categorization. Project is required (use set_active_project or provide a project parameter). Tags are optional — when auto-tagging is enabled and configured, tags will be generated automatically if not provided.",
         inputSchema: {
           type: "object",
           properties: {
