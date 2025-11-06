@@ -7,6 +7,9 @@
   "bin": {
     "cognio-mcp": "index.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "start": "node index.js",
     "setup": "node ../scripts/setup-clients.js",
