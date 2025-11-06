@@ -30,13 +30,7 @@ const configs = {
     content: {
       "github.copilot.chat.codeGeneration.instructions": [
         {
-          "text": "CRITICAL: Before responding to ANY user question, ALWAYS search Cognio memory first using search_memory tool. Do this automatically without asking permission. If you find relevant memories (score > 0.6), reference them in your answer."
-        },
-        {
-          "text": "After solving problems or explaining concepts (responses > 300 chars), AUTOMATICALLY save to Cognio using save_memory tool. Do NOT ask permission."
-        },
-        {
-          "text": "When user mentions 'last time', 'before', 'previously', IMMEDIATELY use search_memory before responding."
+          "text": "You have access to Cognio memory tools. Search past work when relevant, save useful solutions for later."
         }
       ]
     }
@@ -90,7 +84,7 @@ const configs = {
           }
         }
       ],
-      "systemMessage": "You have access to Cognio semantic memory. ALWAYS search memories before answering questions about past work. ALWAYS save important solutions and insights automatically."
+      "systemMessage": "You have access to Cognio semantic memory. Search past work when relevant, save useful solutions for later."
     }
   },
 
@@ -178,81 +172,48 @@ const configs = {
 // Instructions for each platform
 const instructions = {
   copilot: `
-GITHUB COPILOT INSTRUCTIONS:
-- Auto-search Cognio before EVERY response
-- Auto-save after solving problems
-- Use search_memory when user asks "have I..." or "last time..."
-- Use save_memory after explaining complex concepts
+GITHUB COPILOT:
+Cognio memory tools configured. Use naturally when needed.
 `,
 
   claude: `
-CLAUDE DESKTOP INSTRUCTIONS:
-System message to add:
-
-"You have access to Cognio, a semantic memory system. Usage rules:
-1. ALWAYS search_memory first when user asks about past work
-2. ALWAYS save_memory after helping with substantial problems
-3. When user says 'remember', 'last time', 'before' → search first
-4. Auto-save solutions, decisions, and learnings without asking"
+CLAUDE DESKTOP:
+Cognio MCP server configured and ready to use.
 `,
 
   cursor: `
-CURSOR INSTRUCTIONS:
-Add to .cursorrules file:
-
-# Cognio Auto-Memory
-- Before answering questions, search Cognio memories
-- After solving problems, save solutions to Cognio
-- Keywords: "remember", "last time" → auto-search
-- Auto-save: solutions, decisions, learnings
+CURSOR:
+Cognio MCP server configured and ready to use.
 `,
 
   continue: `
-CONTINUE.DEV INSTRUCTIONS:
-System message already configured in config.json
-The assistant will automatically use Cognio for:
-- Searching past work
-- Saving solutions
-- Building knowledge base
+CONTINUE.DEV:
+Cognio MCP server configured and ready to use.
 `,
 
   cline: `
-CLINE INSTRUCTIONS:
-MCP server configured. Remind Cline:
-"Use Cognio memory tools automatically:
-- search_memory before answering past-work questions
-- save_memory after solving problems
-- No need to ask permission"
+CLINE:
+Cognio MCP server configured and ready to use.
 `,
 
   windsurf: `
-WINDSURF INSTRUCTIONS:
-MCP server configured at ~/.windsurf/mcp_config.json
-Access via: Windsurf Settings > Manage MCPs > View raw config
-Remind Windsurf to use Cognio automatically for memory operations.
+WINDSURF:
+Cognio MCP server configured at ~/.windsurf/mcp_config.json
 `,
 
   kiro: `
-KIRO INSTRUCTIONS:
-MCP server configured at ~/.kiro/settings/mcp.json
-Kiro will auto-detect the server on next start.
-Use naturally: "search memories" or "remember this"
+KIRO:
+Cognio MCP server configured at ~/.kiro/settings/mcp.json
 `,
 
   claudeCLI: `
-CLAUDE CLI INSTRUCTIONS:
-Config at ~/.claude.json
-Start claude with: claude --scope user
-Test with: "search my cognio memories"
-Auto-save is enabled for important responses.
+CLAUDE CLI:
+Cognio MCP server configured at ~/.claude.json
 `,
 
   geminiCLI: `
-GEMINI CLI INSTRUCTIONS:
-Config at ~/gemini/settings.json
-List MCP servers: gemini /mcp list
-Cognio tools will appear automatically.
-Use: "search cognio for..." or "save to cognio..."
+GEMINI CLI:
+Cognio MCP server configured at ~/gemini/settings.json
 `
 };
 
