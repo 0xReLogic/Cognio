@@ -38,7 +38,7 @@ class EmbeddingService:
         if not self.cache_dirty:
             logger.info("Cache not modified, skipping save")
             return
-            
+
         cache_path = Path(settings.embedding_cache_path)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(cache_path, "wb") as f:

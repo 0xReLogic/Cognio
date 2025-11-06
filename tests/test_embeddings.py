@@ -3,15 +3,13 @@
 import pytest
 
 from src.embeddings import EmbeddingService
+from src.utils import generate_text_hash
 
 
 @pytest.fixture
 def embedding_service() -> EmbeddingService:
     """Create embedding service instance."""
     return EmbeddingService()
-
-
-from src.utils import generate_text_hash
 
 
 def test_encode_single_text(embedding_service: EmbeddingService) -> None:

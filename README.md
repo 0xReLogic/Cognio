@@ -218,9 +218,9 @@ uvicorn src.main:app --reload
 **v0.2.0** (Current)
 - [x] Auto-tagging with LLM
 - [x] MCP auto-setup for 9 AI clients
-- [x] LLM integration 
+- [x] LLM integration
+- [x] Text summarization (extractive & abstractive)
 - [ ] Web UI for memory management
-- [ ] Memory summarization
 
 **v1.0.0**
 - [ ] Graph relationships (knowledge graph)

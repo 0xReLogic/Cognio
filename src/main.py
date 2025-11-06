@@ -17,7 +17,6 @@ from .database import db
 from .embeddings import embedding_service
 from .memory import memory_service
 from .metrics import metrics_service
-from .summarization import summarize
 from .models import (
     BulkDeleteRequest,
     BulkDeleteResponse,
@@ -30,6 +29,7 @@ from .models import (
     SummarizeRequest,
     SummarizeResponse,
 )
+from .summarization import summarize
 
 # Configure logging
 logging.basicConfig(
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings.ensure_db_dir()
     db.connect()
     embedding_service.load_model()
-    
+
     # Start periodic cache save task
     async def periodic_cache_save():
         while True:
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 embedding_service.save_cache()
             except Exception as e:
                 logger.error(f"Error in periodic cache save: {e}")
-    
+
     cache_task = asyncio.create_task(periodic_cache_save())
     logger.info("Server ready!")
 
@@ -385,13 +385,13 @@ async def summarize_text(request: SummarizeRequest) -> SummarizeResponse:
     """
     try:
         summary = summarize(request.text, num_sentences=request.num_sentences)
-        
+
         original_words = len(request.text.split())
         summary_words = len(summary.split())
-        
+
         # Determine method used
         method = "abstractive" if summary_words < request.num_sentences * 10 else "extractive"
-        
+
         return SummarizeResponse(
             summary=summary,
             original_length=original_words,

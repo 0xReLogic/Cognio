@@ -2,6 +2,7 @@
 
 import logging
 import re
+
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
@@ -72,13 +73,13 @@ def abstractive_summarize(text: str, max_length: int = 150) -> str:
             from .autotag import get_client
         except ImportError:
             from autotag import get_client
-        
+
         client = get_client()
         model_name = settings.groq_model if settings.llm_provider == "groq" else settings.openai_model
-        
+
         # Truncate text if too long
         text_to_summarize = text[:15000] if len(text) > 15000 else text
-        
+
         prompt = f"""Please provide a concise summary of the following text in approximately {max_length} words or less.
 Focus on the main ideas and key points. Write in a clear, informative style.
 
@@ -86,7 +87,7 @@ Text to summarize:
 {text_to_summarize}
 
 Summary:"""
-        
+
         response = client.chat.completions.create(
             model=model_name,
             messages=[
@@ -96,16 +97,16 @@ Summary:"""
             temperature=0.3,
             max_tokens=300,
         )
-        
+
         if response.choices:
             summary = response.choices[0].message.content
             if summary:
                 return summary.strip()
-        
+
         # Fallback to extractive if LLM fails
         logger.warning("Abstractive summarization failed, falling back to extractive")
         return extractive_summarize(text)
-        
+
     except Exception as e:
         logger.error(f"Error in abstractive summarization: {e}")
         # Fallback to extractive summarization
@@ -126,12 +127,12 @@ def summarize(text: str, num_sentences: int = 3) -> str:
     # Check if summarization is enabled
     if not settings.summarization_enabled:
         return text
-    
+
     # Check if summary is already cached
     cache_key = f"{settings.summarization_method}:{text[:100]}"
     if cache_key in summary_cache:
         return summary_cache[cache_key]
-    
+
     # Choose summarization method
     if settings.summarization_method == "abstractive":
         # Only use abstractive if autotag is enabled (shares same LLM client)
@@ -142,8 +143,8 @@ def summarize(text: str, num_sentences: int = 3) -> str:
             summary = extractive_summarize(text, num_sentences)
     else:
         summary = extractive_summarize(text, num_sentences)
-    
+
     # Cache the summary
     summary_cache[cache_key] = summary
-    
+
     return summary

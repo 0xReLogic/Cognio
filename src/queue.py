@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from typing import Any
 
 from .embeddings import embedding_service
 
@@ -71,7 +70,7 @@ class EmbeddingQueue:
                         )
                         batch.append((text, text_hash))
                         futures.append(future)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # Process what we have
                     pass
 

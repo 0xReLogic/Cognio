@@ -60,7 +60,7 @@ def generate_tags(text: str) -> dict[str, Any]:
     """
     if not settings.autotag_enabled:
         return {"category": None, "tags": []}
-    
+
     # Check API key based on provider
     if settings.llm_provider == "groq" and not settings.groq_api_key:
         logger.warning("Auto-tagging enabled but Groq API key not configured")
@@ -72,10 +72,10 @@ def generate_tags(text: str) -> dict[str, Any]:
     try:
         client = get_client()
         model = settings.groq_model if settings.llm_provider == "groq" else settings.openai_model
-        
+
         # Truncate text if too long (max 8000 chars for safety)
         text_to_analyze = text[:8000] if len(text) > 8000 else text
-        
+
         # Build kwargs based on provider
         create_kwargs = {
             "model": model,
@@ -88,13 +88,13 @@ def generate_tags(text: str) -> dict[str, Any]:
             ],
             "temperature": 0,
         }
-        
+
         # Only add response_format for OpenAI
         if settings.llm_provider == "openai":
             create_kwargs["response_format"] = {"type": "json_object"}
-        
+
         response = client.chat.completions.create(**create_kwargs)
-        
+
         if response.choices:
             content = response.choices[0].message.content
             if content:
