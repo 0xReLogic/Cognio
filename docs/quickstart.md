@@ -6,7 +6,8 @@ Get Cognio up and running in 5 minutes.
 
 - Python 3.11 or higher
 - Docker (optional, for container deployment)
-- 500MB free disk space (for embedding model)
+- 1.1GB free disk space (for default multilingual embedding model)
+  - Or 80MB if using lightweight model (all-MiniLM-L6-v2)
 
 ## Option 1: Docker (Recommended)
 
@@ -52,7 +53,11 @@ pip install -r requirements.txt
 uvicorn src.main:app --host 0.0.0.0 --port 8080
 ```
 
-On first run, the server will download the embedding model (~1.1GB for multilingual support). This takes about 30 seconds.
+On first run, the server will download the embedding model:
+- Default: `paraphrase-multilingual-mpnet-base-v2` (~1.1GB, best quality, 100+ languages)
+- Alternative: Set `EMBED_MODEL=all-MiniLM-L6-v2` in `.env` (~80MB, faster, English-focused)
+
+Model download takes about 30-60 seconds depending on your connection.
 
 ### 3. Verify Installation
 
@@ -135,19 +140,61 @@ cp .env.example .env
 nano .env
 ```
 
-Key settings:
+### Essential Settings
+
 ```bash
 # Database location
 DB_PATH=./data/memory.db
 
-# Server port
+# Embedding model (choose based on your needs)
+# Default: paraphrase-multilingual-mpnet-base-v2 (1.1GB, best quality, 100+ languages)
+# Fast: all-MiniLM-L6-v2 (80MB, good for English)
+EMBED_MODEL=paraphrase-multilingual-mpnet-base-v2
+EMBED_DEVICE=cpu
+
+# Server configuration
+API_HOST=0.0.0.0
 API_PORT=8080
 
 # Search defaults
 DEFAULT_SEARCH_LIMIT=5
 SIMILARITY_THRESHOLD=0.7
+```
 
-# Optional API key for authentication
+### Optional: Auto-Tagging with LLM
+
+Enable automatic tag generation using AI:
+
+```bash
+# Enable auto-tagging
+AUTOTAG_ENABLED=true
+LLM_PROVIDER=groq
+
+# Groq API (FREE tier: 14,400 requests/day)
+# Get key from: https://console.groq.com/keys
+GROQ_API_KEY=your-groq-api-key-here
+GROQ_MODEL=openai/gpt-oss-120b
+
+# Or use OpenAI (paid)
+# LLM_PROVIDER=openai
+# OPENAI_API_KEY=your-openai-key-here
+# OPENAI_MODEL=gpt-4o-mini
+```
+
+### Optional: Text Summarization
+
+```bash
+# Enable summarization (default: enabled)
+SUMMARIZATION_ENABLED=true
+
+# Method: extractive (fast, no API) or abstractive (better quality, uses LLM)
+SUMMARIZATION_METHOD=extractive
+```
+
+### Optional: API Authentication
+
+```bash
+# Require API key for all requests
 API_KEY=your-secret-key-here
 ```
 
@@ -168,11 +215,35 @@ Check out the `examples/` directory:
 
 ### MCP Integration
 
-To use Cognio with Claude Desktop or other MCP clients:
+To use Cognio with AI clients (Claude Desktop, Cursor, VS Code Copilot, etc):
 
-1. Copy `examples/mcp_config.json` to your MCP client config location
-2. Update the URL if needed (default: http://localhost:8080)
-3. Restart your MCP client
+**Auto-Setup (Recommended):**
+
+```bash
+cd mcp-server
+npm run setup
+```
+
+This automatically configures all 9 supported AI clients:
+- Claude Desktop
+- Claude Code (CLI)
+- VS Code (GitHub Copilot)
+- Cursor
+- Continue.dev
+- Cline
+- Windsurf
+- Kiro
+- Gemini CLI
+
+**Manual Setup:**
+
+See [mcp-server/README.md](../mcp-server/README.md) for client-specific configuration examples.
+
+**After Setup:**
+
+1. Restart your AI client
+2. Cognio auto-generates `cognio.md` in your workspace with usage guide
+3. Try: `"Search my memories for Docker"` or `"Remember this: FastAPI is awesome"`
 
 ### Troubleshooting
 
