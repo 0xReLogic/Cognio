@@ -33,7 +33,7 @@ def extractive_summarize(text: str, num_sentences: int = 3) -> str:
         The generated summary.
     """
     # Split the text into sentences
-    sentences = re.split(r'(?<=[.?!])\s+', text)
+    sentences = re.split(r"(?<=[.?!])\s+", text)
     if len(sentences) <= num_sentences:
         return text
 
@@ -75,7 +75,9 @@ def abstractive_summarize(text: str, max_length: int = 150) -> str:
             from autotag import get_client
 
         client = get_client()
-        model_name = settings.groq_model if settings.llm_provider == "groq" else settings.openai_model
+        model_name = (
+            settings.groq_model if settings.llm_provider == "groq" else settings.openai_model
+        )
 
         # Truncate text if too long
         text_to_summarize = text[:15000] if len(text) > 15000 else text
@@ -91,7 +93,10 @@ Summary:"""
         response = client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that creates concise, accurate summaries."},
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant that creates concise, accurate summaries.",
+                },
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,
@@ -128,6 +133,11 @@ def summarize(text: str, num_sentences: int = 3) -> str:
     if not settings.summarization_enabled:
         return text
 
+    # Don't summarize very short texts (less than 50 words)
+    word_count = len(text.split())
+    if word_count < 50:
+        return text
+
     # Check if summary is already cached
     cache_key = f"{settings.summarization_method}:{text[:100]}"
     if cache_key in summary_cache:
@@ -139,7 +149,9 @@ def summarize(text: str, num_sentences: int = 3) -> str:
         if settings.autotag_enabled:
             summary = abstractive_summarize(text)
         else:
-            logger.warning("Abstractive summarization requires autotag_enabled=True, using extractive instead")
+            logger.warning(
+                "Abstractive summarization requires autotag_enabled=True, using extractive instead"
+            )
             summary = extractive_summarize(text, num_sentences)
     else:
         summary = extractive_summarize(text, num_sentences)

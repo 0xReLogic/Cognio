@@ -38,10 +38,7 @@ class MetricsService:
         if error:
             stats["errors"] += 1
 
-        logger.info(
-            f"Request to {endpoint} completed in {response_time:.3f}s "
-            f"(error: {error})"
-        )
+        logger.info(f"Request to {endpoint} completed in {response_time:.3f}s " f"(error: {error})")
 
     def get_stats(self) -> dict[str, Any]:
         """

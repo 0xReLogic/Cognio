@@ -115,6 +115,7 @@ async def log_requests(request: Request, call_next):
             error=error,
         )
 
+
 # Optional API key security
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -396,7 +397,7 @@ async def summarize_text(request: SummarizeRequest) -> SummarizeResponse:
             summary=summary,
             original_length=original_words,
             summary_length=summary_words,
-            method=method
+            method=method,
         )
     except Exception as e:
         logger.error(f"Error summarizing text: {e}")
