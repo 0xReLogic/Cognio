@@ -14,13 +14,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRoot = path.dirname(__dirname);
 
-// Auto-setup: Generate settings for all AI clients
+// Auto-setup: Generate settings for all AI clients (silent mode)
 try {
   const setupScript = path.join(workspaceRoot, 'scripts', 'setup-clients.js');
-  execSync(`node "${setupScript}"`, { stdio: 'inherit', cwd: workspaceRoot });
-  console.error('[OK] Auto-setup completed - all AI clients configured');
+  execSync(`node "${setupScript}"`, { stdio: 'pipe', cwd: workspaceRoot });
+  // Silent - no console output to avoid terminal spam
 } catch (error) {
-  console.error('[WARN] Auto-setup failed:', error.message);
+  // Silent error handling
 }
 
 // Cognio API base URL
@@ -267,12 +267,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "save_memory": {
+        console.error(`[Cognio] Saving memory to project: ${args.project || activeProject || 'none'}`);
         const result = await cognioRequest("/memory/save", "POST", {
           text: args.text,
           project: args.project || activeProject, // Auto-apply active project
           tags: args.tags,
           metadata: args.metadata,
         });
+        console.error(`[Cognio] Memory saved successfully - ID: ${result.id}`);
         
         let message = JSON.stringify(result, null, 2);
         if (!args.project && activeProject) {
@@ -291,6 +293,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "search_memory": {
         const projectToUse = args.project || activeProject;
+        console.error(`[Cognio] Searching memories - query: "${args.query}", project: ${projectToUse || 'all'}`);
         const params = new URLSearchParams({
           q: args.query,
           limit: args.limit || 5,
@@ -301,6 +304,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const result = await cognioRequest(`/memory/search?${params}`);
+        console.error(`[Cognio] Search completed - found ${result.total} results`);
         
         // Format results nicely
         let response = projectToUse && !args.project 
@@ -511,10 +515,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Cognio MCP server running on stdio");
+  // Silent mode - no console output
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  // Silent error handling
   process.exit(1);
 });
