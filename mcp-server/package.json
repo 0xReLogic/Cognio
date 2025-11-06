@@ -12,8 +12,7 @@
   },
   "scripts": {
     "start": "node index.js",
-    "setup": "node ../scripts/setup-clients.js",
-    "postinstall": "node ../scripts/setup-clients.js"
+    "setup": "node ../scripts/setup-clients.js"
   },
   "keywords": [
     "mcp",
