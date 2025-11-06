@@ -10,6 +10,7 @@ Real-world examples and patterns for using Cognio effectively.
 - [Data Management](#data-management)
 - [Integration Examples](#integration-examples)
 - [Advanced Patterns](#advanced-patterns)
+- [Text Summarization](#text-summarization)
 
 ## Basic Usage
 
@@ -499,6 +500,133 @@ def weekly_maintenance():
     )
 
 weekly_maintenance()
+```
+
+## Text Summarization
+
+### Summarize Long Articles
+
+```bash
+# Summarize research paper abstract
+curl -X POST http://localhost:8080/memory/summarize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Machine learning has revolutionized artificial intelligence by enabling computers to learn from data without explicit programming. Deep learning, a subset of machine learning, uses neural networks with multiple layers to model complex patterns. Convolutional neural networks excel at image recognition tasks, while recurrent neural networks handle sequential data like text and speech. Transformer architectures have achieved breakthrough results in natural language processing, powering modern applications like chatbots and translation systems.",
+    "num_sentences": 2
+  }'
+```
+
+**Response**:
+```json
+{
+  "summary": "Machine learning enables computers to learn from data without explicit programming, with deep learning using multi-layered neural networks for complex pattern modeling. Transformer architectures have achieved breakthrough results in natural language processing applications.",
+  "original_length": 67,
+  "summary_length": 30,
+  "method": "abstractive"
+}
+```
+
+### Summarize Before Saving
+
+```python
+import requests
+
+def save_with_summary(text, project):
+    # Get summary first
+    summary_response = requests.post(
+        'http://localhost:8080/memory/summarize',
+        json={'text': text, 'num_sentences': 2}
+    )
+    summary_data = summary_response.json()
+    
+    # Save both full text and summary
+    requests.post(
+        'http://localhost:8080/memory/save',
+        json={
+            'text': summary_data['summary'],
+            'project': project,
+            'tags': ['summary', 'condensed']
+        }
+    )
+    
+    print(f"Condensed {summary_data['original_length']} words to {summary_data['summary_length']}")
+    return summary_data
+
+# Use it
+long_article = """
+Artificial intelligence is transforming industries worldwide...
+[... 500 more words ...]
+"""
+
+save_with_summary(long_article, 'AI_RESEARCH')
+```
+
+### Batch Summarization
+
+```python
+import requests
+
+def summarize_batch(texts, num_sentences=3):
+    """Summarize multiple texts efficiently."""
+    summaries = []
+    
+    for text in texts:
+        response = requests.post(
+            'http://localhost:8080/memory/summarize',
+            json={'text': text, 'num_sentences': num_sentences}
+        )
+        summaries.append(response.json())
+    
+    return summaries
+
+# Summarize multiple documents
+documents = [
+    "Long document 1...",
+    "Long document 2...",
+    "Long document 3..."
+]
+
+results = summarize_batch(documents, num_sentences=2)
+for i, result in enumerate(results):
+    print(f"Doc {i+1}: {result['summary_length']} words (from {result['original_length']})")
+```
+
+### Auto-Summarize on Save
+
+```python
+import requests
+
+class SmartMemoryClient:
+    def __init__(self, base_url="http://localhost:8080", threshold=100):
+        self.base_url = base_url
+        self.threshold = threshold  # Summarize if longer than this
+    
+    def save(self, text, project, tags):
+        # Auto-summarize long texts
+        word_count = len(text.split())
+        
+        if word_count > self.threshold:
+            # Get summary
+            summary_response = requests.post(
+                f"{self.base_url}/memory/summarize",
+                json={'text': text, 'num_sentences': 3}
+            )
+            text_to_save = summary_response.json()['summary']
+            tags = tags + ['auto-summarized']
+        else:
+            text_to_save = text
+        
+        # Save memory
+        response = requests.post(
+            f"{self.base_url}/memory/save",
+            json={'text': text_to_save, 'project': project, 'tags': tags}
+        )
+        return response.json()
+
+# Usage
+client = SmartMemoryClient(threshold=50)
+client.save("Very long article...", "LEARNING", ["ai", "ml"])
+# Automatically summarized if > 50 words
 ```
 
 ## More Examples

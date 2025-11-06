@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   cognio:
     build: .
@@ -15,6 +13,12 @@ services:
       - LOG_LEVEL=info
       - API_HOST=0.0.0.0
       - API_PORT=8080
+      # Auto-tagging (Optional - uncomment and set your key)
+      # - AUTOTAG_ENABLED=true
+      # - GROQ_API_KEY=your-groq-api-key
+      # - GROQ_MODEL=openai/gpt-oss-120b
+      # Summarization (Optional - uses auto-tagging config if enabled)
+      - SUMMARIZE_THRESHOLD=50
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health')"]

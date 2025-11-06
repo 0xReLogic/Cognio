@@ -17,6 +17,7 @@ from .database import db
 from .embeddings import embedding_service
 from .memory import memory_service
 from .metrics import metrics_service
+from .summarization import summarize
 from .models import (
     BulkDeleteRequest,
     BulkDeleteResponse,
@@ -26,6 +27,8 @@ from .models import (
     SaveMemoryResponse,
     SearchMemoryResponse,
     StatsResponse,
+    SummarizeRequest,
+    SummarizeResponse,
 )
 
 # Configure logging
@@ -367,6 +370,37 @@ async def export_memories(
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@app.post("/memory/summarize", response_model=SummarizeResponse)
+async def summarize_text(request: SummarizeRequest) -> SummarizeResponse:
+    """
+    Summarize long text using extractive or abstractive methods.
+
+    Args:
+        request: Text to summarize and number of sentences
+
+    Returns:
+        SummarizeResponse with generated summary and metadata
+    """
+    try:
+        summary = summarize(request.text, num_sentences=request.num_sentences)
+        
+        original_words = len(request.text.split())
+        summary_words = len(summary.split())
+        
+        # Determine method used
+        method = "abstractive" if summary_words < request.num_sentences * 10 else "extractive"
+        
+        return SummarizeResponse(
+            summary=summary,
+            original_length=original_words,
+            summary_length=summary_words,
+            method=method
+        )
+    except Exception as e:
+        logger.error(f"Error summarizing text: {e}")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR)
 
 
 @app.get("/metrics")

@@ -7,7 +7,9 @@
     "cognio-mcp-server": "./index.js"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "setup": "node ../scripts/setup-clients.js",
+    "postinstall": "node ../scripts/setup-clients.js"
   },
   "keywords": [
     "mcp",

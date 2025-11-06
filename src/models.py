@@ -49,6 +49,13 @@ class ExportParams(BaseModel):
     project: str | None = Field(None, description=_FILTER_BY_PROJECT_DESC)
 
 
+class SummarizeRequest(BaseModel):
+    """Request to summarize text."""
+
+    text: str = Field(..., max_length=50000, description="Text to summarize")
+    num_sentences: int = Field(3, ge=1, le=10, description="Number of sentences in summary")
+
+
 # Response models
 class SaveMemoryResponse(BaseModel):
     """Response from saving a memory."""
@@ -109,6 +116,15 @@ class StatsResponse(BaseModel):
     storage_mb: float
     by_project: dict[str, int]
     top_tags: list[str]
+
+
+class SummarizeResponse(BaseModel):
+    """Response from summarizing text."""
+
+    summary: str = Field(..., description="Generated summary")
+    original_length: int = Field(..., description="Original text word count")
+    summary_length: int = Field(..., description="Summary word count")
+    method: str = Field(..., description="Summarization method used (extractive/abstractive)")
 
 
 # Internal models

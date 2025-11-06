@@ -1,11 +1,27 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
-  CallToolRequestSchema,
   ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+  CallToolRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { execSync } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const workspaceRoot = path.dirname(__dirname);
+
+// Auto-setup: Generate settings for all AI clients
+try {
+  const setupScript = path.join(workspaceRoot, 'scripts', 'setup-clients.js');
+  execSync(`node "${setupScript}"`, { stdio: 'inherit', cwd: workspaceRoot });
+  console.error('[OK] Auto-setup completed - all AI clients configured');
+} catch (error) {
+  console.error('[WARN] Auto-setup failed:', error.message);
+}
 
 // Cognio API base URL
 const COGNIO_API_URL = process.env.COGNIO_API_URL || "http://localhost:8080";
@@ -53,7 +69,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "save_memory",
-        description: "Save information to long-term semantic memory with automatic tagging and categorization",
+        description: "Save information to long-term semantic memory with automatic tagging and categorization. IMPORTANT: Always specify a project name to keep memories organized and prevent mixing contexts.",
         inputSchema: {
           type: "object",
           properties: {
@@ -63,7 +79,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             project: {
               type: "string",
-              description: "Optional project name to organize the memory",
+              description: "Project name to organize the memory (RECOMMENDED: use current workspace/repo name or topic)",
             },
             tags: {
               type: "array",
@@ -80,7 +96,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "search_memory",
-        description: "Search memories using semantic similarity",
+        description: "Search memories using semantic similarity. TIP: Filter by project to avoid mixing contexts from different workspaces.",
         inputSchema: {
           type: "object",
           properties: {
@@ -90,7 +106,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             project: {
               type: "string",
-              description: "Optional project filter",
+              description: "Filter by project name (RECOMMENDED to avoid cross-project results)",
             },
             tags: {
               type: "array",
@@ -151,6 +167,57 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             memory_id: {
               type: "string",
               description: "The ID of the memory to archive",
+            },
+          },
+          required: ["memory_id"],
+        },
+      },
+      {
+        name: "summarize_text",
+        description: "Summarize long text using extractive or abstractive methods",
+        inputSchema: {
+          type: "object",
+          properties: {
+            text: {
+              type: "string",
+              description: "The text to summarize",
+            },
+            num_sentences: {
+              type: "number",
+              description: "Number of sentences in summary (default: 3, max: 10)",
+            },
+          },
+          required: ["text"],
+        },
+      },
+      {
+        name: "export_memories",
+        description: "Export memories to JSON or Markdown format. Useful for backups or analyzing memory content.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            format: {
+              type: "string",
+              description: "Export format: 'json' or 'markdown'",
+              enum: ["json", "markdown"],
+              default: "json",
+            },
+            project: {
+              type: "string",
+              description: "Optional: filter by project name",
+            },
+          },
+        },
+      },
+      {
+        name: "delete_memory",
+        description: "Permanently delete a memory by ID. Use archive_memory instead for soft delete.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            memory_id: {
+              type: "string",
+              description: "The ID of the memory to delete",
             },
           },
           required: ["memory_id"],
@@ -271,6 +338,61 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "summarize_text": {
+        const result = await cognioRequest("/memory/summarize", "POST", {
+          text: args.text,
+          num_sentences: args.num_sentences || 3,
+        });
+        
+        const response = `Summary:\n${result.summary}\n\nStats:\n- Original: ${result.original_length} words\n- Summary: ${result.summary_length} words\n- Method: ${result.method}`;
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: response,
+            },
+          ],
+        };
+      }
+
+      case "export_memories": {
+        const format = args.format || "json";
+        const params = new URLSearchParams();
+        if (args.project) params.append("project", args.project);
+        params.append("format", format);
+
+        const response = await fetch(`${API_BASE}/memory/export?${params}`, {
+          method: "GET",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Export failed: ${response.statusText}`);
+        }
+
+        const exportData = await response.text();
+        return {
+          content: [
+            {
+              type: "text",
+              text: `[EXPORT] Format: ${format}\n${args.project ? `Project: ${args.project}\n` : ''}\n${exportData}`,
+            },
+          ],
+        };
+      }
+
+      case "delete_memory": {
+        const result = await cognioRequest(`/memory/${args.memory_id}`, "DELETE");
+        return {
+          content: [
+            {
+              type: "text",
+              text: `[OK] Memory ${args.memory_id} permanently deleted`,
             },
           ],
         };

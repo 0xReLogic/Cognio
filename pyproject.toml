@@ -25,6 +25,8 @@ pydantic = "^2.5.0"
 pydantic-settings = "^2.1.0"
 python-dotenv = "^1.0.0"
 numpy = "^1.26.0"
+httpx = "^0.25.2"
+groq = "^0.4.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"

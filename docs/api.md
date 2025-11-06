@@ -17,6 +17,7 @@ Complete reference for all Cognio API endpoints.
   - [Bulk Delete](#bulk-delete)
   - [Statistics](#statistics)
   - [Export](#export)
+  - [Summarize Text](#summarize-text)
 - [Data Models](#data-models)
 - [Error Handling](#error-handling)
 
@@ -423,6 +424,70 @@ curl "http://localhost:8080/memory/export?format=markdown" > memories.md
 
 # Export specific project
 curl "http://localhost:8080/memory/export?format=json&project=SENTINEL" > sentinel.json
+```
+
+---
+
+### Summarize Text
+
+Summarize long text using extractive or abstractive methods.
+
+**Endpoint**: `POST /memory/summarize`
+
+**Authentication**: None
+
+**Request Body**:
+```json
+{
+  "text": "Long text to summarize here...",
+  "num_sentences": 3
+}
+```
+
+**Parameters**:
+- `text` (string, required): Text to summarize (max 50,000 characters)
+- `num_sentences` (integer, optional): Number of sentences in summary (1-10, default: 3)
+
+**Response**:
+```json
+{
+  "summary": "Summarized text here. Main points extracted. Concise overview provided.",
+  "original_length": 245,
+  "summary_length": 42,
+  "method": "abstractive"
+}
+```
+
+**Fields**:
+- `summary`: Generated summary text
+- `original_length`: Word count of original text
+- `summary_length`: Word count of summary
+- `method`: `"extractive"` (clustering-based) or `"abstractive"` (LLM-based)
+
+**Notes**:
+- Abstractive summarization requires LLM API key (Groq or OpenAI)
+- Falls back to extractive if API unavailable
+- Best for texts > 100 words
+- Maintains semantic meaning while reducing length
+
+**Example**:
+```bash
+curl -X POST http://localhost:8080/memory/summarize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Artificial intelligence is transforming technology. Machine learning algorithms process vast amounts of data to identify patterns. Neural networks power breakthrough applications in image recognition and natural language processing.",
+    "num_sentences": 2
+  }'
+```
+
+**Response**:
+```json
+{
+  "summary": "Artificial intelligence is revolutionizing technology through machine learning and neural networks. These technologies enable breakthrough applications in image recognition and natural language processing.",
+  "original_length": 35,
+  "summary_length": 24,
+  "method": "abstractive"
+}
 ```
 
 ---
