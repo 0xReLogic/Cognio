@@ -94,7 +94,7 @@ class MemoryService:
         project: str | None = None,
         tags: list[str] | None = None,
         limit: int = 5,
-        threshold: float = 0.4,
+        threshold: float | None = None,
         after_date: str | None = None,
         before_date: str | None = None,
     ) -> list[MemoryResult]:
@@ -106,14 +106,16 @@ class MemoryService:
             project: Optional project filter
             tags: Optional tags filter
             limit: Maximum number of results
-            threshold: Minimum similarity score
+            threshold: Minimum similarity score (defaults to settings.similarity_threshold)
             after_date: Filter memories after this date (ISO 8601)
             before_date: Filter memories before this date (ISO 8601)
 
         Returns:
             List of matching memories with scores
         """
-        # Generate query embedding
+        # Use default threshold from settings if not provided
+        if threshold is None:
+            threshold = settings.similarity_threshold
         query_hash = generate_text_hash(query)
         query_embedding = embedding_service.encode(query, query_hash)
 

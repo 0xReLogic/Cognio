@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # Search
     default_search_limit: int = 5
-    similarity_threshold: float = 0.7
+    similarity_threshold: float = 0.4
 
     # Performance
     max_text_length: int = 10000
