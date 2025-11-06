@@ -185,31 +185,43 @@ Note: Claude Code requires `"type": "stdio"` in the config.
 ## Available Tools
 
 ### save_memory
-Save information to long-term semantic memory with automatic tagging.
+Save information to long-term semantic memory with automatic tagging and categorization.
 
 Parameters:
-- `text` (required): The memory content
-- `project` (optional): Project name for organization
-- `tags` (optional): Array of tags (auto-generated if not provided)
+- `text` (required): The memory content to save
+- `project` (optional): Project name for organization. Either provide this or use set_active_project first
+- `tags` (optional): Array of tags. If omitted and auto-tagging is enabled with a valid LLM API key (GROQ_API_KEY or OPENAI_API_KEY), tags will be auto-generated
 - `metadata` (optional): Key-value metadata object
+
+Notes:
+- A project is required (either via parameter or active project context)
+- Auto-tagging requires: AUTOTAG_ENABLED=true and a configured LLM API key in .env
+- If auto-tagging is disabled or misconfigured, memory saves without tags
 
 ### search_memory
 Search memories using semantic similarity.
 
 Parameters:
 - `query` (required): Search query text
-- `project` (optional): Filter by project
+- `project` (optional): Filter by project. If omitted, uses active project (required)
 - `tags` (optional): Filter by tags array
 - `limit` (optional): Max results (default: 5)
+
+Notes:
+- A project context is required (either via parameter or set_active_project)
+- Similarity threshold is configurable via SIMILARITY_THRESHOLD in .env (default: 0.4)
 
 ### list_memories
 List all memories with optional filtering.
 
 Parameters:
-- `project` (optional): Filter by project
+- `project` (optional): Filter by project. If omitted, uses active project (required)
 - `tags` (optional): Filter by tags array
 - `limit` (optional): Max results (default: 20)
 - `offset` (optional): Skip results (default: 0)
+
+Notes:
+- A project context is required (either via parameter or set_active_project)
 
 ### get_memory_stats
 Get statistics about stored memories.
@@ -261,6 +273,31 @@ No parameters required.
 ## Environment Variables
 
 - `COGNIO_API_URL`: Base URL for Cognio API (default: http://localhost:8080)
+
+## Configuration
+
+Auto-tagging and other features are configured via `.env` in the Cognio project root:
+
+```bash
+# Auto-tagging (requires LLM API key)
+AUTOTAG_ENABLED=true
+LLM_PROVIDER=groq
+GROQ_API_KEY=your-key-here
+GROQ_MODEL=openai/gpt-oss-120b
+
+# Or use OpenAI instead
+# OPENAI_API_KEY=your-key-here
+# OPENAI_MODEL=gpt-3.5-turbo
+
+# Semantic search threshold (lower = more results, default 0.4)
+SIMILARITY_THRESHOLD=0.4
+
+# Summarization
+SUMMARIZATION_ENABLED=true
+SUMMARIZATION_METHOD=abstractive
+```
+
+See `.env.example` in the Cognio root directory for complete configuration options.
 
 ## Requirements
 
