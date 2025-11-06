@@ -118,6 +118,23 @@ const configs = {
     }
   },
 
+  // Claude Code (CLI) settings
+  claudeCode: {
+    path: path.join(homeDir, '.claude.json'),
+    content: {
+      "mcpServers": {
+        "cognio": {
+          "type": "stdio",
+          "command": "node",
+          "args": [path.join(workspaceRoot, "mcp-server", "index.js")],
+          "env": {
+            "COGNIO_API_URL": "http://localhost:8080"
+          }
+        }
+      }
+    }
+  },
+
   // Gemini CLI settings
   geminiCLI: {
     path: path.join(homeDir, 'gemini', 'settings.json'),
@@ -143,6 +160,7 @@ const instructions = {
   cline: `CLINE: Ready to use`,
   windsurf: `WINDSURF: Ready to use`,
   kiro: `KIRO: Ready to use`,
+  claudeCode: `CLAUDE CODE: Ready to use`,
   geminiCLI: `GEMINI CLI: Ready to use`
 };
 
@@ -212,6 +230,7 @@ function main() {
     cline: setupConfig('cline', configs.cline),
     windsurf: setupConfig('windsurf', configs.windsurf),
     kiro: setupConfig('kiro', configs.kiro),
+    claudeCode: setupConfig('claudeCode', configs.claudeCode),
     geminiCLI: setupConfig('geminiCLI', configs.geminiCLI)
   };
 

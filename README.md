@@ -45,8 +45,9 @@ Server runs at `http://localhost:8080`
 The MCP server automatically configures supported AI clients on first start:
 
 **Supported Clients:**
-- VS Code (GitHub Copilot)
 - Claude Desktop
+- Claude Code (CLI)
+- VS Code (GitHub Copilot)
 - Cursor
 - Continue.dev
 - Cline
@@ -62,7 +63,7 @@ cd mcp-server
 npm run setup
 ```
 
-This generates MCP configs for all 8 supported clients automatically.
+This generates MCP configs for all 9 supported clients automatically.
 
 **Manual Configuration:**
 
@@ -216,7 +217,7 @@ uvicorn src.main:app --reload
 
 **v0.2.0** (Current)
 - [x] Auto-tagging with LLM
-- [x] MCP auto-setup for 8 AI clients
+- [x] MCP auto-setup for 9 AI clients
 - [x] LLM integration 
 - [ ] Web UI for memory management
 - [ ] Memory summarization

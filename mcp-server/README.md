@@ -12,11 +12,13 @@ npm run setup
 
 This automatically generates MCP configurations for:
 - Claude Desktop
+- Claude Code (CLI)
 - Cursor
 - Continue.dev
 - Cline
 - Windsurf
 - Kiro
+- VS Code (GitHub Copilot)
 - Gemini CLI
 
 ## Manual Configuration
@@ -159,6 +161,26 @@ Add to `~/gemini/settings.json`:
   }
 }
 ```
+
+### Claude Code (CLI)
+
+Add to `~/.claude.json`:
+```json
+{
+  "mcpServers": {
+    "cognio": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "env": {
+        "COGNIO_API_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+Note: Claude Code requires `"type": "stdio"` in the config.
 
 ## Available Tools
 
