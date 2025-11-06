@@ -89,6 +89,24 @@ Or use naturally in your AI client:
 "Remember this: FastAPI is a modern Python web framework"
 ```
 
+### 4. Web UI Dashboard
+
+Access the interactive memory dashboard:
+```
+http://localhost:8080/ui
+```
+
+Features:
+- Browse and search all memories
+- Add/edit memories with markdown preview
+- View statistics and insights
+- Organize by project and tags
+- Bulk operations (select, delete)
+- Dark/light theme toggle
+- Works locally and in Docker
+
+The dashboard auto-detects the API server, so it works on localhost, Docker containers, and remote deployments.
+
 ## Documentation
 
 - **[API Reference](docs/api.md)** - Complete endpoint documentation

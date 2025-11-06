@@ -1,6 +1,18 @@
+// Auto-detect API URL based on current location
+// Works in Docker: container:8080 → http://container-hostname:8080
+// Works locally: localhost:8080 → http://localhost:8080
+function getDefaultApiUrl() {
+    const stored = localStorage.getItem('apiUrl');
+    if (stored) return stored;
+    
+    // Use current origin (protocol + hostname + port)
+    // This works correctly in Docker and local environments
+    return window.location.origin;
+}
+
 // Configuration
 let config = {
-    apiUrl: localStorage.getItem('apiUrl') || 'http://localhost:8080',
+    apiUrl: getDefaultApiUrl(),
     apiKey: localStorage.getItem('apiKey') || '',
     pageSize: parseInt(localStorage.getItem('pageSize')) || 20,
     theme: localStorage.getItem('theme') || 'light'

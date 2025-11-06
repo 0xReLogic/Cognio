@@ -129,7 +129,10 @@
                         <h2>API Configuration</h2>
                         <div class="form-group">
                             <label>API URL</label>
-                            <input type="text" id="apiUrl" value="http://localhost:8080" class="form-input">
+                            <input type="text" id="apiUrl" placeholder="Auto-detected: window.location.origin" class="form-input">
+                            <small style="color: var(--text-secondary); margin-top: 4px; display: block;">
+                                Leave empty to auto-detect. Works with localhost, Docker, and remote servers.
+                            </small>
                         </div>
                         <div class="form-group">
                             <label>API Key (Optional)</label>
