@@ -318,10 +318,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "save_memory": {
-        console.error(`[Cognio] Saving memory to project: ${args.project || activeProject || 'none'}`);
+        // Require either explicit project or active project
+        if (!args.project && !activeProject) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "ERROR: Must set active project first or specify project parameter.\n\nUse set_active_project(\"project-name\") to enable memory operations.",
+              },
+            ],
+            isError: true,
+          };
+        }
+        
+        console.error(`[Cognio] Saving memory to project: ${args.project || activeProject}`);
         const result = await cognioRequest("/memory/save", "POST", {
           text: args.text,
-          project: args.project || activeProject, // Auto-apply active project
+          project: args.project || activeProject,
           tags: args.tags,
           metadata: args.metadata,
         });
@@ -343,8 +356,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "search_memory": {
+        // Require active project for search
+        if (!activeProject && !args.project) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "ERROR: Must set active project first or specify project parameter.\n\nUse set_active_project(\"project-name\") to search memories.",
+              },
+            ],
+            isError: true,
+          };
+        }
+
         const projectToUse = args.project || activeProject;
-        console.error(`[Cognio] Searching memories - query: "${args.query}", project: ${projectToUse || 'all'}`);
+        console.error(`[Cognio] Searching memories - query: "${args.query}", project: ${projectToUse}`);
         const params = new URLSearchParams({
           q: args.query,
           limit: args.limit || 5,
@@ -383,6 +409,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "list_memories": {
+        // Require active project for list
+        if (!activeProject && !args.project) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "ERROR: Must set active project first or specify project parameter.\n\nUse set_active_project(\"project-name\") to list memories.",
+              },
+            ],
+            isError: true,
+          };
+        }
+
         const projectToUse = args.project || activeProject;
         const params = new URLSearchParams({
           limit: args.limit || 20,
