@@ -32,8 +32,8 @@ Add to `.vscode/mcp.json`:
 {
   "servers": {
     "cognio": {
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -49,8 +49,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) o
 {
   "mcpServers": {
     "cognio": {
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -66,8 +66,8 @@ Add to `~/.cursor/mcp_settings.json`:
 {
   "mcpServers": {
     "cognio": {
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -81,11 +81,11 @@ Add to `~/.cursor/mcp_settings.json`:
 Add to `~/.continue/config.json`:
 ```json
 {
-  "mcpServers": [
+  "mcp": [
     {
       "name": "cognio",
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -101,8 +101,8 @@ Add to `~/.cline/mcp.json`:
 {
   "mcpServers": {
     "cognio": {
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -113,13 +113,13 @@ Add to `~/.cline/mcp.json`:
 
 ### Windsurf
 
-Add to `~/.windsurf/mcp_config.json`:
+Add to `~/.windsurf/mcp.json`:
 ```json
 {
   "mcpServers": {
     "cognio": {
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -135,8 +135,8 @@ Add to `~/.kiro/settings/mcp.json`:
 {
   "mcpServers": {
     "cognio": {
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -147,13 +147,13 @@ Add to `~/.kiro/settings/mcp.json`:
 
 ### Gemini CLI
 
-Add to `~/gemini/settings.json`:
+Add to `~/gemini/mcp.json`:
 ```json
 {
   "mcpServers": {
     "cognio": {
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
@@ -170,8 +170,8 @@ Add to `~/.claude.json`:
   "mcpServers": {
     "cognio": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/path/to/Cognio/mcp-server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
         "COGNIO_API_URL": "http://localhost:8080"
       }
