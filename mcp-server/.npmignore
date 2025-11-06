@@ -1,0 +1,11 @@
+*.log
+node_modules
+.DS_Store
+../docs
+../scripts
+../tests
+../examples
+.git
+.gitignore
+.vscode
+README.md

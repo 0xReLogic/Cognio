@@ -5,7 +5,7 @@
   "type": "module",
   "main": "index.js",
   "bin": {
-    "cognio-mcp": "./index.js"
+    "cognio-mcp": "index.js"
   },
   "scripts": {
     "start": "node index.js",
@@ -22,7 +22,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/0xReLogic/Cognio.git",
+    "url": "git+https://github.com/0xReLogic/Cognio.git",
     "directory": "mcp-server"
   },
   "dependencies": {
