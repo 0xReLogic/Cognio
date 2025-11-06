@@ -205,7 +205,6 @@ API_KEY=your-secret-key-here
 Check out the `examples/` directory:
 - `examples/basic_usage.py` - Python SDK examples
 - `examples/curl_examples.sh` - Command-line examples
-- `examples/mcp_config.json` - MCP client configuration
 
 ### Full Documentation
 
