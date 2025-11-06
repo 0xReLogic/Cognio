@@ -1,10 +1,13 @@
 """FastAPI application for Cognio server."""
 
+import asyncio
 import logging
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, Security
+from fastapi import FastAPI, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.security import APIKeyHeader
@@ -13,6 +16,7 @@ from .config import settings
 from .database import db
 from .embeddings import embedding_service
 from .memory import memory_service
+from .metrics import metrics_service
 from .models import (
     BulkDeleteRequest,
     BulkDeleteResponse,
@@ -44,12 +48,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings.ensure_db_dir()
     db.connect()
     embedding_service.load_model()
+    
+    # Start periodic cache save task
+    async def periodic_cache_save():
+        while True:
+            await asyncio.sleep(300)  # Save every 5 minutes
+            try:
+                embedding_service.save_cache()
+            except Exception as e:
+                logger.error(f"Error in periodic cache save: {e}")
+    
+    cache_task = asyncio.create_task(periodic_cache_save())
     logger.info("Server ready!")
 
     yield
 
     # Shutdown
     logger.info("Shutting down...")
+    cache_task.cancel()
     embedding_service.save_cache()
     db.close()
 
@@ -70,6 +86,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all requests with timing."""
+    start_time = time.time()
+    error = False
+
+    try:
+        response = await call_next(request)
+        if response.status_code >= 400:
+            error = True
+        return response
+    except Exception as e:
+        error = True
+        logger.error(f"Request error: {e}")
+        raise
+    finally:
+        process_time = time.time() - start_time
+        metrics_service.record_request(
+            endpoint=f"{request.method} {request.url.path}",
+            response_time=process_time,
+            error=error,
+        )
 
 # Optional API key security
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -326,6 +367,17 @@ async def export_memories(
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@app.get("/metrics")
+async def get_metrics() -> dict[str, Any]:
+    """
+    Get server metrics and statistics.
+
+    Returns:
+        Metrics data including request counts, response times, and endpoint stats
+    """
+    return metrics_service.get_stats()
 
 
 if __name__ == "__main__":

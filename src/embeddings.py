@@ -22,6 +22,7 @@ class EmbeddingService:
         self.model: SentenceTransformer | None = None
         self.embedding_dim = 768  # Multilingual mpnet uses 768 dimensions
         self.cache: dict[str, list[float]] = {}
+        self.cache_dirty = False  # Track if cache has unsaved changes
         self.load_cache()
 
     def load_cache(self) -> None:
@@ -34,10 +35,15 @@ class EmbeddingService:
 
     def save_cache(self) -> None:
         """Save the embedding cache to disk."""
+        if not self.cache_dirty:
+            logger.info("Cache not modified, skipping save")
+            return
+            
         cache_path = Path(settings.embedding_cache_path)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(cache_path, "wb") as f:
             pickle.dump(self.cache, f)
+        self.cache_dirty = False
         logger.info(f"Saved {len(self.cache)} embeddings to cache.")
 
     def load_model(self) -> None:
@@ -72,6 +78,7 @@ class EmbeddingService:
 
         # Add the new embedding to the cache
         self.cache[text_hash] = embedding_list
+        self.cache_dirty = True
 
         return embedding_list
 

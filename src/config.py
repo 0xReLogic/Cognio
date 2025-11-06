@@ -35,8 +35,19 @@ class Settings(BaseSettings):
 
     # Auto-tagging
     autotag_enabled: bool = False
+    llm_provider: str = "groq"  # Options: "groq", "openai", "local"
+    
+    # OpenAI settings
     openai_api_key: str | None = None
     openai_model: str = "gpt-3.5-turbo"
+    
+    # Groq settings
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.3-70b-versatile"  # or "llama-3.1-70b-versatile", "gemma2-9b-it"
+    
+    # Summarization
+    summarization_enabled: bool = True
+    summarization_method: str = "extractive"  # Options: "extractive", "abstractive"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

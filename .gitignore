@@ -8,6 +8,8 @@ __pycache__/
 *.so
 .sonarlint
 .Python
+.serena
+.vscode
 build/
 develop-eggs/
 dist/
