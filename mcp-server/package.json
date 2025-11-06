@@ -1,10 +1,11 @@
 {
-  "name": "cognio-mcp-server",
+  "name": "@0xrelogic/cognio-mcp",
   "version": "1.0.0",
   "description": "MCP server for Cognio semantic memory",
   "type": "module",
+  "main": "index.js",
   "bin": {
-    "cognio-mcp-server": "./index.js"
+    "cognio-mcp": "./index.js"
   },
   "scripts": {
     "start": "node index.js",
@@ -17,6 +18,13 @@
     "semantic-search",
     "llm"
   ],
+  "author": "0xReLogic",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xReLogic/Cognio.git",
+    "directory": "mcp-server"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4"
   },
