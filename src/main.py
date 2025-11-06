@@ -5,6 +5,7 @@ import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request, Security
@@ -92,12 +93,10 @@ app.add_middleware(
 )
 
 # Serve Web UI
-from pathlib import Path
-
 web_ui_path = Path(__file__).parent.parent / "web-ui"
 if web_ui_path.exists():
     app.mount("/ui", StaticFiles(directory=str(web_ui_path), html=True), name="ui")
-    logger.info(f"Web UI available at /ui")
+    logger.info("Web UI available at /ui")
 
 
 # Request logging middleware

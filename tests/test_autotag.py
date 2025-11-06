@@ -22,7 +22,7 @@ class TestAutoTag(unittest.TestCase):
         # Mock the client
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        
+
         # Mock the OpenAI API response
         mock_response = MagicMock()
         mock_choice = MagicMock()
