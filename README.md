@@ -113,7 +113,7 @@ Or use naturally in your AI client:
 
 ## MCP Tools
 
-When using the MCP server, you have access to 10 specialized tools:
+When using the MCP server, you have access to 11 specialized tools:
 
 | Tool | Description |
 |------|-------------|
@@ -127,13 +127,15 @@ When using the MCP server, you have access to 10 specialized tools:
 | `summarize_text` | Summarize long text (extractive or LLM-based) |
 | **`set_active_project`** | **Set active project context (auto-applies to all operations)** ⭐ |
 | **`get_active_project`** | **View currently active project** ⭐ |
+| **`list_projects`** | **List all available projects from database** ⭐ |
 
 **Active Project Workflow:**
 ```
-1. set_active_project("Helios-LoadBalancer")
-2. save_memory("Cache TTL is 300s") → Auto-saves to Helios-LoadBalancer
-3. search_memory("cache settings") → Auto-searches in Helios-LoadBalancer only
-4. list_memories() → Lists only Helios-LoadBalancer memories
+1. list_projects() → See: Helios-LoadBalancer (45), Cognio-Memory (23), ...
+2. set_active_project("Helios-LoadBalancer")
+3. save_memory("Cache TTL is 300s") → Auto-saves to Helios-LoadBalancer
+4. search_memory("cache settings") → Auto-searches in Helios-LoadBalancer only
+5. list_memories() → Lists only Helios-LoadBalancer memories
 ```
 
 **Project Isolation:**  

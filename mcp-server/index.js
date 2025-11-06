@@ -248,6 +248,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
         },
       },
+      {
+        name: "list_projects",
+        description: "List all available projects in the database. Useful for discovering projects before setting one as active.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
     ],
   };
 });
@@ -457,6 +465,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: activeProject 
                 ? `Current active project: ${activeProject}` 
                 : `No active project set. Use set_active_project to activate one.`,
+            },
+          ],
+        };
+      }
+
+      case "list_projects": {
+        const stats = await cognioRequest("/memory/stats");
+        const projects = Object.entries(stats.by_project)
+          .sort((a, b) => b[1] - a[1]) // Sort by memory count descending
+          .map(([name, count]) => `- ${name} (${count} memories)`)
+          .join('\n');
+        
+        const message = projects 
+          ? `Available projects:\n\n${projects}\n\n${activeProject ? `[Active: ${activeProject}]` : '[No active project]'}` 
+          : 'No projects found. Create your first memory with a project name!';
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: message,
             },
           ],
         };
