@@ -94,7 +94,7 @@ class MemoryService:
         project: str | None = None,
         tags: list[str] | None = None,
         limit: int = 5,
-        threshold: float = 0.7,
+        threshold: float = 0.4,
         after_date: str | None = None,
         before_date: str | None = None,
     ) -> list[MemoryResult]:
