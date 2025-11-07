@@ -35,7 +35,8 @@ Add to `.vscode/mcp.json`:
       "command": "npx",
       "args": ["-y", "@0xrelogic/cognio-mcp"],
       "env": {
-        "COGNIO_API_URL": "http://localhost:8080"
+        "COGNIO_API_URL": "http://localhost:8080",
+        "COGNIO_API_KEY": "your-optional-api-key-here"
       }
     }
   }
@@ -273,6 +274,7 @@ No parameters required.
 ## Environment Variables
 
 - `COGNIO_API_URL`: Base URL for Cognio API (default: http://localhost:8080)
+- `COGNIO_API_KEY`: Optional API key for authenticated requests (sent as `X-API-Key` header if provided)
 
 ## Configuration
 
