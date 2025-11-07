@@ -178,7 +178,8 @@ async function loadMemories() {
             : await apiCall(`/memory/list?${params}`);
 
         state.memories = data.results || data.memories || [];
-        state.totalPages = Math.ceil((data.total || 0) / config.pageSize);
+        const total = data.total || data.total_items || 0;
+        state.totalPages = Math.ceil(total / config.pageSize) || 1;
 
         renderMemories();
         updatePagination();
