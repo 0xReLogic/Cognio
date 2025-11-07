@@ -74,8 +74,9 @@ try {
   // Silent error handling
 }
 
-// Cognio API base URL
+// Cognio API base URL and API Key
 const COGNIO_API_URL = process.env.COGNIO_API_URL || "http://localhost:8080";
+const COGNIO_API_KEY = process.env.COGNIO_API_KEY;
 
 // Active project state (persists during MCP session)
 let activeProject = null;
@@ -89,6 +90,11 @@ async function cognioRequest(endpoint, method = "GET", body = null) {
       "Content-Type": "application/json",
     },
   };
+
+  // Add API key if provided
+  if (COGNIO_API_KEY) {
+    options.headers["X-API-Key"] = COGNIO_API_KEY;
+  }
 
   if (body) {
     options.body = JSON.stringify(body);
@@ -508,9 +514,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args.project) params.append("project", args.project);
         params.append("format", format);
 
-        const response = await fetch(`${API_BASE}/memory/export?${params}`, {
+        const url = `${COGNIO_API_URL}/memory/export?${params}`;
+        const options = {
           method: "GET",
-        });
+          headers: {},
+        };
+
+        // Add API key if provided
+        if (COGNIO_API_KEY) {
+          options.headers["X-API-Key"] = COGNIO_API_KEY;
+        }
+
+        const response = await fetch(url, options);
 
         if (!response.ok) {
           throw new Error(`Export failed: ${response.statusText}`);
