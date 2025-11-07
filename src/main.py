@@ -168,7 +168,7 @@ async def save_memory(
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR)
 
 
-@app.get("/memory/search", response_model=SearchMemoryResponse)
+@app.get("/memory/search", response_model=SearchMemoryResponse), authenticated: bool = Security(verify_api_key)
 async def search_memory(
     q: str = Query(..., description="Search query"),
     project: str | None = Query(None, description=_FILTER_BY_PROJECT_DESC),
@@ -213,7 +213,7 @@ async def search_memory(
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR)
 
 
-@app.get("/memory/list", response_model=ListMemoriesResponse)
+@app.get("/memory/list", response_model=ListMemoriesResponse), authenticated: bool = Security(verify_api_key)
 async def list_memories(
     project: str | None = Query(None, description=_FILTER_BY_PROJECT_DESC),
     tags: str | None = Query(None, description="Comma-separated tags"),
@@ -332,7 +332,7 @@ async def bulk_delete_memories(
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR)
 
 
-@app.get("/memory/stats", response_model=StatsResponse)
+@app.get("/memory/stats", response_model=StatsResponse), authenticated: bool = Security(verify_api_key)
 async def get_stats() -> StatsResponse:
     """
     Get memory statistics.
@@ -348,7 +348,7 @@ async def get_stats() -> StatsResponse:
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR)
 
 
-@app.get("/memory/export", response_model=None)
+@app.get("/memory/export", response_model=None), authenticated: bool = Security(verify_api_key)
 async def export_memories(
     format: str = Query("json", pattern="^(json|markdown)$", description="Export format"),
     project: str | None = Query(None, description=_FILTER_BY_PROJECT_DESC),
@@ -381,7 +381,7 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-@app.post("/memory/summarize", response_model=SummarizeResponse)
+@app.post("/memory/summarize", response_model=SummarizeResponse), authenticated: bool = Security(verify_api_key)
 async def summarize_text(request: SummarizeRequest) -> SummarizeResponse:
     """
     Summarize long text using extractive or abstractive methods.
