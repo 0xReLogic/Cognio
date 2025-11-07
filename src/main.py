@@ -174,7 +174,7 @@ async def search_memory(
     project: str | None = Query(None, description=_FILTER_BY_PROJECT_DESC),
     tags: str | None = Query(None, description="Comma-separated tags"),
     limit: int = Query(5, ge=1, le=50, description="Maximum results"),
-    threshold: float = Query(0.7, ge=0.0, le=1.0, description="Minimum similarity score"),
+    threshold: float | None = Query(None, ge=0.0, le=1.0, description="Minimum similarity score (defaults to SIMILARITY_THRESHOLD from env)"),
     after_date: str | None = Query(None, description="Filter memories after date (ISO 8601)"),
     before_date: str | None = Query(None, description="Filter memories before date (ISO 8601)"),
     authenticated: bool = Security(verify_api_key),
