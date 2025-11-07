@@ -489,6 +489,9 @@ function saveSettings() {
 // Pagination
 function changePage(delta) {
     const newPage = state.currentPage + delta;
+    
+    // Prevent navigation if no valid pages
+    if (state.totalPages <= 0) return;
     if (newPage < 1 || newPage > state.totalPages) return;
     
     state.currentPage = newPage;
@@ -496,9 +499,14 @@ function changePage(delta) {
 }
 
 function updatePagination() {
-    document.getElementById('pageInfo').textContent = `Page ${state.currentPage} of ${state.totalPages}`;
-    document.getElementById('prevPage').disabled = state.currentPage === 1;
-    document.getElementById('nextPage').disabled = state.currentPage === state.totalPages;
+    // Ensure at least 1 page if totalPages is 0
+    const displayPages = Math.max(state.totalPages, state.memories.length > 0 ? 1 : 0);
+    document.getElementById('pageInfo').textContent = `Page ${state.currentPage} of ${displayPages}`;
+    
+    // Only disable buttons if we have valid pages to show
+    const hasPages = displayPages > 0;
+    document.getElementById('prevPage').disabled = !hasPages || state.currentPage === 1;
+    document.getElementById('nextPage').disabled = !hasPages || state.currentPage === displayPages;
 }
 
 // Utilities
