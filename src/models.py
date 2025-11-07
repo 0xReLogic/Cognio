@@ -113,9 +113,11 @@ class StatsResponse(BaseModel):
 
     total_memories: int
     total_projects: int
+    total_tags: int
     storage_mb: float
-    by_project: dict[str, int]
-    top_tags: list[str]
+    avg_text_length: float
+    memories_by_project: dict[str, int]
+    tags_distribution: dict[str, int]
 
 
 class SummarizeResponse(BaseModel):

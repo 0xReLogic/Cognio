@@ -235,17 +235,21 @@ class Database:
             ORDER BY count DESC
             """
         )
-        by_project = {row["project"]: row["count"] for row in cursor.fetchall()}
+        memories_by_project = {row["project"]: row["count"] for row in cursor.fetchall()}
 
-        # Get top tags (excluding archived)
+        # Get all tags distribution (excluding archived)
         cursor = self.execute("SELECT tags FROM memories WHERE tags IS NOT NULL AND archived = 0")
-        all_tags: dict[str, int] = {}
+        tags_distribution: dict[str, int] = {}
         for row in cursor.fetchall():
             tags = json.loads(row["tags"])
             for tag in tags:
-                all_tags[tag] = all_tags.get(tag, 0) + 1
+                tags_distribution[tag] = tags_distribution.get(tag, 0) + 1
 
-        top_tags = sorted(all_tags.items(), key=lambda x: x[1], reverse=True)[:10]
+        # Calculate average text length
+        cursor = self.execute(
+            "SELECT AVG(LENGTH(text)) as avg_length FROM memories WHERE archived = 0"
+        )
+        avg_text_length = cursor.fetchone()["avg_length"] or 0
 
         # Calculate storage size
         db_size = Path(self.db_path).stat().st_size if Path(self.db_path).exists() else 0
@@ -253,10 +257,12 @@ class Database:
 
         return {
             "total_memories": total,
-            "total_projects": len(by_project),
+            "total_projects": len(memories_by_project),
+            "total_tags": len(tags_distribution),
             "storage_mb": round(storage_mb, 2),
-            "by_project": by_project,
-            "top_tags": [tag for tag, _ in top_tags],
+            "avg_text_length": round(avg_text_length, 0) if avg_text_length else 0,
+            "memories_by_project": memories_by_project,
+            "tags_distribution": tags_distribution,
         }
 
     def _row_to_memory(self, row: sqlite3.Row) -> Memory:
