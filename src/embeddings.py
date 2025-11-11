@@ -115,6 +115,9 @@ class EmbeddingService:
         vec1 = np.array(embedding1)
         vec2 = np.array(embedding2)
 
+        if vec1.shape != vec2.shape:
+            return 0.0
+
         dot_product = np.dot(vec1, vec2)
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
