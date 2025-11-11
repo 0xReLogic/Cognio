@@ -25,13 +25,25 @@ class EmbeddingService:
         self.cache_dirty = False  # Track if cache has unsaved changes
         self.load_cache()
 
+    def _slug(self, name: str) -> str:
+        """Create filesystem-safe slug from model name."""
+        return "".join(c if c.isalnum() else "-" for c in name).strip("-").lower()
+
+    def get_cache_path(self) -> Path:
+        """Compute namespaced cache path per model to avoid collisions."""
+        base = Path(settings.embedding_cache_path)
+        stem = base.stem or "embedding_cache"
+        suffix = base.suffix or ".pkl"
+        slug = self._slug(self.model_name)
+        return base.with_name(f"{stem}-{slug}{suffix}")
+
     def load_cache(self) -> None:
         """Load the embedding cache from disk."""
-        cache_path = Path(settings.embedding_cache_path)
+        cache_path = self.get_cache_path()
         if cache_path.exists():
             with open(cache_path, "rb") as f:
                 self.cache = pickle.load(f)
-            logger.info(f"Loaded {len(self.cache)} embeddings from cache.")
+            logger.info(f"Loaded {len(self.cache)} embeddings from cache: {cache_path}")
 
     def save_cache(self) -> None:
         """Save the embedding cache to disk."""
@@ -39,12 +51,12 @@ class EmbeddingService:
             logger.info("Cache not modified, skipping save")
             return
 
-        cache_path = Path(settings.embedding_cache_path)
+        cache_path = self.get_cache_path()
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(cache_path, "wb") as f:
             pickle.dump(self.cache, f)
         self.cache_dirty = False
-        logger.info(f"Saved {len(self.cache)} embeddings to cache.")
+        logger.info(f"Saved {len(self.cache)} embeddings to cache: {cache_path}")
 
     def load_model(self) -> None:
         """Load the sentence-transformer model."""
@@ -80,6 +92,17 @@ class EmbeddingService:
         self.cache[text_hash] = embedding_list
         self.cache_dirty = True
 
+        return embedding_list
+
+    def encode_force(self, text: str, text_hash: str) -> list[float]:
+        """Generate embedding ignoring cache and overwrite cache entry."""
+        if self.model is None:
+            self.load_model()
+        assert self.model is not None
+        embedding = self.model.encode(text, convert_to_numpy=True)
+        embedding_list = embedding.tolist()
+        self.cache[text_hash] = embedding_list
+        self.cache_dirty = True
         return embedding_list
 
     def encode_batch(self, texts: list[str]) -> list[list[float]]:

@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     summarization_enabled: bool = True
     summarization_method: str = "abstractive"
 
+    # Re-embedding
+    auto_reembed_on_start: bool = True
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     def get_db_dir(self) -> Path:

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import settings
+from .utils import get_timestamp
 from .models import Memory
 
 logger = logging.getLogger(__name__)
@@ -187,6 +188,17 @@ class Database:
     def delete_memory(self, memory_id: str) -> bool:
         """Delete a memory by ID (hard delete)."""
         cursor = self.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+        self.commit()
+        return cursor.rowcount > 0
+
+    def update_embedding(self, memory_id: str, embedding: list[float]) -> bool:
+        """Update embedding vector for a memory and touch updated_at."""
+        embedding_bytes = json.dumps(embedding).encode("utf-8")
+        updated_at = get_timestamp()
+        cursor = self.execute(
+            "UPDATE memories SET embedding = ?, updated_at = ? WHERE id = ?",
+            (embedding_bytes, updated_at, memory_id),
+        )
         self.commit()
         return cursor.rowcount > 0
 

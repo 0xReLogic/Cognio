@@ -54,6 +54,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     db.connect()
     embedding_service.load_model()
 
+    # Optionally trigger background re-embedding for mismatched dimensions
+    reembed_task = None
+    if settings.auto_reembed_on_start:
+        async def background_reembed() -> None:
+            try:
+                logger.info("Auto re-embed on start: scanning for mismatched embeddings...")
+                stats = await asyncio.to_thread(memory_service.reembed_mismatched, 500)
+                logger.info(
+                    "Auto re-embed completed: scanned=%s, reembedded=%s",
+                    stats.get("scanned"), stats.get("reembedded")
+                )
+            except Exception as e:
+                logger.error(f"Auto re-embed error: {e}")
+
+        reembed_task = asyncio.create_task(background_reembed())
+
     # Start periodic cache save task
     async def periodic_cache_save():
         while True:
@@ -71,6 +87,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Shutdown
     logger.info("Shutting down...")
     cache_task.cancel()
+    if 'reembed_task' in locals() and reembed_task:
+        reembed_task.cancel()
     embedding_service.save_cache()
     db.close()
 

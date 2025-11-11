@@ -254,6 +254,35 @@ class MemoryService:
 
         return results, total_count
 
+    def reembed_mismatched(self, page_size: int = 500) -> dict[str, int]:
+        scanned = 0
+        reembedded = 0
+        offset = 0
+
+        while True:
+            memories = db.list_memories(limit=page_size, offset=offset)
+            if not memories:
+                break
+
+            scanned += len(memories)
+            needs = [
+                m
+                for m in memories
+                if (m.embedding is None) or (len(m.embedding) != embedding_service.embedding_dim)
+            ]
+
+            if needs:
+                texts = [m.text for m in needs]
+                embeddings = embedding_service.encode_batch(texts)
+                for m, emb in zip(needs, embeddings):
+                    db.update_embedding(m.id, emb)
+                    reembedded += 1
+
+            offset += page_size
+
+        logger.info(f"Re-embed completed: scanned={scanned}, reembedded={reembedded}")
+        return {"scanned": scanned, "reembedded": reembedded}
+
     def delete_memory(self, memory_id: str) -> bool:
         """
         Delete a memory by ID.
