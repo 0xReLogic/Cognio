@@ -114,7 +114,7 @@ Add to `~/.cline/mcp.json`:
 
 ### Windsurf
 
-Add to `~/.windsurf/mcp.json`:
+Add to `~/.windsurf/mcp_config.json`:
 ```json
 {
   "mcpServers": {

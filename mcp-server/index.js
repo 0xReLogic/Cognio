@@ -198,6 +198,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               items: { type: "string" },
               description: "Filter by tags",
             },
+            page: {
+              type: "number",
+              description: "Page number (1-indexed)",
+              default: 1,
+            },
             limit: {
               type: "number",
               description: "Maximum number of results",
@@ -205,8 +210,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             offset: {
               type: "number",
-              description: "Number of results to skip",
+              description: "Number of results to skip (legacy; will be converted to page)",
               default: 0,
+            },
+            full_text: {
+              type: "boolean",
+              description: "If true, return full text in output (no truncation)",
+              default: false,
             },
           },
         },
@@ -394,11 +404,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         console.error(`[Cognio] Searching memories - query: "${args.query}", project: ${projectToUse}`);
         const params = new URLSearchParams({
           q: args.query,
-          limit: args.limit || 5,
+          limit: String(args.limit || 5),
         });
         if (projectToUse) params.append("project", projectToUse);
         if (args.tags && args.tags.length > 0) {
-          args.tags.forEach(tag => params.append("tags", tag));
+          params.append("tags", args.tags.join(","));
         }
 
         const result = await cognioRequest(`/memory/search?${params}`);
@@ -410,7 +420,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           : `Found ${result.total} memories:\n\n`;
           
         result.results.forEach((mem, idx) => {
-          response += `${idx + 1}. [Score: ${mem.score.toFixed(3)}]\n`;
+          const scoreText = typeof mem.score === 'number' ? mem.score.toFixed(3) : 'N/A';
+          response += `${idx + 1}. [Score: ${scoreText}]\n`;
           response += `   Text: ${mem.text}\n`;
           if (mem.project) response += `   Project: ${mem.project}\n`;
           if (mem.tags && mem.tags.length > 0) {
@@ -444,23 +455,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const projectToUse = args.project || activeProject;
+        const limit = Number.isFinite(args?.limit) ? Number(args.limit) : 20;
+        const page = Number.isFinite(args?.page)
+          ? Number(args.page)
+          : (Number.isFinite(args?.offset) ? Math.floor(Number(args.offset) / limit) + 1 : 1);
         const params = new URLSearchParams({
-          limit: args.limit || 20,
-          offset: args.offset || 0,
+          limit: String(limit),
+          page: String(page),
+          sort: "date",
         });
         if (projectToUse) params.append("project", projectToUse);
         if (args.tags && args.tags.length > 0) {
-          args.tags.forEach(tag => params.append("tags", tag));
+          params.append("tags", args.tags.join(","));
         }
 
         const result = await cognioRequest(`/memory/list?${params}`);
         
+        const total = (typeof result.total_items === 'number') ? result.total_items : (result.total ?? 0);
         let response = projectToUse && !args.project
-          ? `[Active Project: ${projectToUse}]\nTotal: ${result.total} memories (showing ${result.memories.length})\n\n`
-          : `Total: ${result.total} memories (showing ${result.memories.length})\n\n`;
+          ? `[Active Project: ${projectToUse}]\nTotal: ${total} memories (page ${result.page} of ${result.total_pages}, showing ${result.memories.length})\n\n`
+          : `Total: ${total} memories (page ${result.page} of ${result.total_pages}, showing ${result.memories.length})\n\n`;
           
         result.memories.forEach((mem, idx) => {
-          response += `${idx + 1}. ${mem.text.substring(0, 100)}...\n`;
+          const text = args.full_text ? mem.text : `${mem.text.substring(0, 100)}${mem.text.length > 100 ? '...' : ''}`;
+          response += `${idx + 1}. ${text}\n`;
           if (mem.project) response += `   Project: ${mem.project}\n`;
           if (mem.tags && mem.tags.length > 0) {
             response += `   Tags: ${mem.tags.join(", ")}\n`;
@@ -596,20 +614,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "list_projects": {
         const stats = await cognioRequest("/memory/stats");
-        const projects = Object.entries(stats.by_project)
-          .sort((a, b) => b[1] - a[1]) // Sort by memory count descending
-          .map(([name, count]) => `- ${name} (${count} memories)`)
-          .join('\n');
-        
-        const message = projects 
-          ? `Available projects:\n\n${projects}\n\n${activeProject ? `[Active: ${activeProject}]` : '[No active project]'}` 
-          : 'No projects found. Create your first memory with a project name!';
-        
+        const projectsObj = stats.memories_by_project || {};
+        const entries = Object.entries(projectsObj);
+        const list = entries
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, count]) => ({ name, count }));
+
         return {
           content: [
             {
               type: "text",
-              text: message,
+              text: JSON.stringify(list),
             },
           ],
         };
