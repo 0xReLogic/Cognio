@@ -417,6 +417,39 @@ async def summarize_text(
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR)
 
 
+@app.get("/memory/{memory_id}")
+async def get_memory(
+    memory_id: str, authenticated: bool = Security(verify_api_key)
+) -> dict[str, Any]:
+    """
+    Get a single memory by ID.
+
+    Args:
+        memory_id: Memory UUID
+
+    Returns:
+        Memory object with full content
+    """
+    try:
+        memory = db.get_memory_by_id(memory_id)
+        if not memory:
+            raise HTTPException(status_code=404, detail="Memory not found")
+        
+        return {
+            "id": memory.id,
+            "text": memory.text,
+            "project": memory.project,
+            "tags": memory.tags,
+            "created_at": memory.created_at,
+            "updated_at": memory.updated_at,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting memory: {e}")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR)
+
+
 @app.get("/metrics")
 async def get_metrics() -> dict[str, Any]:
     """

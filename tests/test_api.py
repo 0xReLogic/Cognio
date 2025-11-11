@@ -130,6 +130,31 @@ async def test_list_memories() -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_memory() -> None:
+    """Test getting a single memory by ID."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # Save a memory
+        save_response = await client.post(
+            "/memory/save",
+            json={"text": "Test memory content", "project": "TEST", "tags": ["test"]},
+        )
+        memory_id = save_response.json()["id"]
+
+        # Get the memory
+        get_response = await client.get(f"/memory/{memory_id}")
+        assert get_response.status_code == 200
+        data = get_response.json()
+        assert data["id"] == memory_id
+        assert data["text"] == "Test memory content"
+        assert data["project"] == "TEST"
+        assert "test" in data["tags"]
+
+        # Try to get non-existent memory
+        get_response2 = await client.get("/memory/nonexistent-id")
+        assert get_response2.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_delete_memory() -> None:
     """Test deleting a memory."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -167,6 +192,6 @@ async def test_get_stats() -> None:
         data = response.json()
         assert data["total_memories"] == 2
         assert data["total_projects"] == 2
-        assert "by_project" in data
-        assert data["by_project"]["PROJECT_A"] == 1
-        assert data["by_project"]["PROJECT_B"] == 1
+        assert "memories_by_project" in data
+        assert data["memories_by_project"]["PROJECT_A"] == 1
+        assert data["memories_by_project"]["PROJECT_B"] == 1

@@ -21,12 +21,13 @@ const cognioContent = `# Cognio Memory System
 
 This workspace has access to **Cognio** - a semantic memory system via MCP.
 
-## Available Tools (11 total)
+## Available Tools (12 total)
 
 ### Core Memory Operations
 - **save_memory** - Save text with optional project/tags
 - **search_memory** - Semantic search across memories
 - **list_memories** - Browse all memories with filters
+- **get_memory** - Get full content of a specific memory by ID
 - **get_memory_stats** - Get statistics and insights
 - **archive_memory** - Soft delete a memory by ID
 - **delete_memory** - Permanently delete a memory
@@ -313,6 +314,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
         },
       },
+      {
+        name: "get_memory",
+        description: "Get a single memory by ID to view its full content. Use this when you need to read the complete text of a specific memory.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            memory_id: {
+              type: "string",
+              description: "The ID of the memory to retrieve",
+            },
+          },
+          required: ["memory_id"],
+        },
+      },
     ],
   };
 });
@@ -595,6 +610,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: message,
+            },
+          ],
+        };
+      }
+
+      case "get_memory": {
+        console.error(`[Cognio] Retrieving memory by ID: ${args.memory_id}`);
+        const result = await cognioRequest(`/memory/${args.memory_id}`);
+        
+        let response = `Memory Details:\n\n`;
+        response += `ID: ${result.id}\n`;
+        response += `Text: ${result.text}\n`;
+        if (result.project) response += `Project: ${result.project}\n`;
+        if (result.tags && result.tags.length > 0) {
+          response += `Tags: ${result.tags.join(", ")}\n`;
+        }
+        response += `Created: ${new Date(result.created_at * 1000).toISOString()}\n`;
+        response += `Updated: ${new Date(result.updated_at * 1000).toISOString()}\n`;
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: response,
             },
           ],
         };

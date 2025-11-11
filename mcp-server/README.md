@@ -224,6 +224,16 @@ Parameters:
 Notes:
 - A project context is required (either via parameter or set_active_project)
 
+### get_memory
+Get a single memory by ID to view its full content.
+
+Parameters:
+- `memory_id` (required): The ID of the memory to retrieve
+
+Notes:
+- Use this when you need to read the complete text of a specific memory
+- Memory IDs can be obtained from list_memories or search_memory results
+
 ### get_memory_stats
 Get statistics about stored memories.
 

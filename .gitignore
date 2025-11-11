@@ -93,7 +93,7 @@ models/
 *.swo
 *~
 .DS_Store
-
+.kiro
 # Jupyter Notebook
 .ipynb_checkpoints
 
