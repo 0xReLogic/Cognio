@@ -130,7 +130,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "save_memory",
-        description: "Save information to long-term semantic memory with automatic tagging and categorization. Project is required (use set_active_project or provide a project parameter). Tags are optional — when auto-tagging is enabled and configured, tags will be generated automatically if not provided.",
+        description: "Save information to long-term semantic memory with automatic tagging and categorization. Best practice: set an active project first with set_active_project to keep memories organized and avoid context mixing. If not using active project, you must provide a project parameter. Tags are optional — when auto-tagging is enabled and configured, tags will be generated automatically if not provided.",
         inputSchema: {
           type: "object",
           properties: {
@@ -140,7 +140,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             project: {
               type: "string",
-              description: "Project name to organize the memory (RECOMMENDED: use current workspace/repo name or topic)",
+              description: "Project name to organize the memory (REQUIRED unless active project is set; RECOMMENDED: use current workspace/repo name or topic)",
             },
             tags: {
               type: "array",
@@ -157,7 +157,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "search_memory",
-        description: "Search memories using semantic similarity. TIP: Filter by project to avoid mixing contexts from different workspaces.",
+        description: "Search memories using semantic similarity. Use default (detailed=false) for quick exploration or when context is sufficient; it shows previews with IDs and saves input tokens. Use detailed=true only when you need the full text of results. For a specific item, use get_memory(id) after getting the ID from search. TIP: Filter by project to avoid mixing contexts from different workspaces.",
         inputSchema: {
           type: "object",
           properties: {
@@ -179,19 +179,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Maximum number of results (default: 5)",
               default: 5,
             },
+            detailed: {
+              type: "boolean",
+              description: "Return full text (true) or truncated preview with IDs (false, default). Use default to save input tokens; set true only when full text is necessary.",
+              default: false,
+            },
           },
           required: ["query"],
         },
       },
       {
         name: "list_memories",
-        description: "List all memories with optional filtering",
+        description: "List all memories with optional filtering. Best practice: set an active project first to avoid mixing contexts from different workspaces. Use default (full_text=false) for quick browsing; set full_text=true only when you need complete content. For many items, consider using search_memory with relevant keywords instead.",
         inputSchema: {
           type: "object",
           properties: {
             project: {
               type: "string",
-              description: "Filter by project name",
+              description: "Filter by project name (REQUIRED unless active project is set; RECOMMENDED to avoid cross-project results)",
             },
             tags: {
               type: "array",
@@ -215,7 +220,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             full_text: {
               type: "boolean",
-              description: "If true, return full text in output (no truncation)",
+              description: "If true, return full text in output (no truncation). Use default to save input tokens; set true only when full text is necessary.",
               default: false,
             },
           },
@@ -401,7 +406,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const projectToUse = args.project || activeProject;
-        console.error(`[Cognio] Searching memories - query: "${args.query}", project: ${projectToUse}`);
+        const detailed = args.detailed === true;
+        console.error(`[Cognio] Searching memories - query: "${args.query}", project: ${projectToUse}, detailed: ${detailed}`);
         const params = new URLSearchParams({
           q: args.query,
           limit: String(args.limit || 5),
@@ -421,14 +427,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           
         result.results.forEach((mem, idx) => {
           const scoreText = typeof mem.score === 'number' ? mem.score.toFixed(3) : 'N/A';
-          response += `${idx + 1}. [Score: ${scoreText}]\n`;
-          response += `   Text: ${mem.text}\n`;
+          response += `${idx + 1}. [Score: ${scoreText}] [ID: ${mem.id}]\n`;
+          // Truncate text if not detailed
+          const preview = detailed ? mem.text : `${mem.text.substring(0, 120)}${mem.text.length > 120 ? '…' : ''}`;
+          response += `   Text: ${preview}\n`;
           if (mem.project) response += `   Project: ${mem.project}\n`;
           if (mem.tags && mem.tags.length > 0) {
             response += `   Tags: ${mem.tags.join(", ")}\n`;
           }
-          response += `   Created: ${mem.created_at}\n\n`;
+          response += `   Created: ${mem.created_at}\n`;
+          if (!detailed) {
+            response += `   (Use get_memory("${mem.id}") for full text)\n`;
+          }
+          response += `\n`;
         });
+        if (!detailed) {
+          response += `Tip: Use detailed=true for full text or get_memory(id) for specific items.`;
+        }
 
         return {
           content: [
