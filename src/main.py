@@ -205,6 +205,10 @@ async def search_memory(
     ),
     after_date: str | None = Query(None, description="Filter memories after date (ISO 8601)"),
     before_date: str | None = Query(None, description="Filter memories before date (ISO 8601)"),
+    minimal: bool = Query(False, description="Return minimal payload (summary or truncated text)"),
+    max_chars_per_item: int | None = Query(
+        None, ge=1, le=10000, description="Max characters per item when minimal=true"
+    ),
     authenticated: bool = Security(verify_api_key),
 ) -> SearchMemoryResponse:
     """
@@ -234,6 +238,8 @@ async def search_memory(
             threshold=threshold,
             after_date=after_date,
             before_date=before_date,
+            minimal=minimal,
+            max_chars_per_item=max_chars_per_item,
         )
 
         return SearchMemoryResponse(query=q, results=results, total=len(results))

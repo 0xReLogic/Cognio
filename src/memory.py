@@ -99,6 +99,8 @@ class MemoryService:
         threshold: float | None = None,
         after_date: str | None = None,
         before_date: str | None = None,
+        minimal: bool = False,
+        max_chars_per_item: int | None = None,
     ) -> list[MemoryResult]:
         """
         Search memories using semantic similarity.
@@ -121,9 +123,117 @@ class MemoryService:
         query_hash = generate_text_hash(query)
         query_embedding = embedding_service.encode(query, query_hash)
 
-        # If hybrid is enabled and FTS is ready, try hybrid path first
+        def _payload_text(m: Memory) -> str:
+            if minimal:
+                base = m.summary or m.text
+                if max_chars_per_item and max_chars_per_item > 0 and len(base) > max_chars_per_item:
+                    return base[:max_chars_per_item] + "…"
+                return base
+            return m.text
+
+        # If hybrid is enabled and FTS is ready
         if getattr(settings, "hybrid_enabled", False) and db.has_fts():
             alpha = float(getattr(settings, "hybrid_alpha", 0.6))
+            mode = getattr(settings, "hybrid_mode", "candidate")
+            if mode == "rerank":
+                # Semantic-first: build semantic candidates then rerank with BM25
+                # Build base set with filters
+                all_memories = db.get_all_memories()
+                if project:
+                    all_memories = [m for m in all_memories if m.project == project]
+                if tags:
+                    all_memories = [m for m in all_memories if any(tag in m.tags for tag in tags)]
+                if after_date:
+                    try:
+                        after_ts = int(
+                            datetime.fromisoformat(
+                                after_date.replace("Z", _TIMEZONE_OFFSET)
+                            ).timestamp()
+                        )
+                        all_memories = [m for m in all_memories if m.created_at >= after_ts]
+                    except ValueError:
+                        pass
+                if before_date:
+                    try:
+                        before_ts = int(
+                            datetime.fromisoformat(
+                                before_date.replace("Z", _TIMEZONE_OFFSET)
+                            ).timestamp()
+                        )
+                        all_memories = [m for m in all_memories if m.created_at <= before_ts]
+                    except ValueError:
+                        pass
+
+                emb_dim = embedding_service.embedding_dim
+                mems_with_emb = [
+                    m
+                    for m in all_memories
+                    if (m.embedding is not None and len(m.embedding) == emb_dim)
+                ]
+                if not mems_with_emb:
+                    return []
+                m_arr = np.asarray([m.embedding for m in mems_with_emb], dtype=np.float32)
+                q = np.asarray(query_embedding, dtype=np.float32)
+                q_norm = q / (np.linalg.norm(q) + 1e-12)
+                m_norm = m_arr / (np.linalg.norm(m_arr, axis=1, keepdims=True) + 1e-12)
+                sem_scores_all = m_norm @ q_norm
+
+                # Select top-K for rerank
+                topk = int(getattr(settings, "hybrid_rerank_topk", 100))
+                order = np.argsort(-sem_scores_all)
+                sel = order[: min(topk, len(order))]
+                cand_mems = [mems_with_emb[i] for i in sel]
+                sem_scores = sem_scores_all[sel]
+
+                # Normalize sem scores
+                sem_min = float(np.min(sem_scores)) if sem_scores.size else 0.0
+                sem_max = float(np.max(sem_scores)) if sem_scores.size else 1.0
+                sem_range = sem_max - sem_min
+                if sem_scores.size == 1 or abs(sem_range) < 1e-12:
+                    sem_norm = np.ones_like(sem_scores, dtype=np.float32)
+                else:
+                    sem_norm = (sem_scores - sem_min) / (sem_range + 1e-12)
+
+                # BM25 ranks for candidate IDs (missing IDs -> 0 boost)
+                id_list = [m.id for m in cand_mems]
+                bm_map = db.fts_rank_for_ids(query=query, ids=id_list, project=project)
+                bm_inv = np.asarray(
+                    [1.0 / (1.0 + bm_map.get(mid, 1e9)) for mid in id_list], dtype=np.float32
+                )
+                bm_min = float(np.min(bm_inv)) if bm_inv.size else 0.0
+                bm_max = float(np.max(bm_inv)) if bm_inv.size else 1.0
+                bm_range = bm_max - bm_min
+                if bm_inv.size == 1 or abs(bm_range) < 1e-12:
+                    bm_norm = np.ones_like(bm_inv, dtype=np.float32)
+                else:
+                    bm_norm = (bm_inv - bm_min) / (bm_range + 1e-12)
+
+                combined = alpha * sem_norm + (1.0 - alpha) * bm_norm
+
+                thr = (
+                    float(threshold)
+                    if threshold is not None
+                    else float(settings.similarity_threshold)
+                )
+                idxs = np.where(combined >= thr)[0]
+                pairs = [(cand_mems[i], float(combined[i])) for i in idxs]
+                pairs.sort(key=lambda x: x[1], reverse=True)
+                top_res = pairs[:limit]
+
+                return [
+                    MemoryResult(
+                        id=memory.id,
+                        text=_payload_text(memory),
+                        summary=memory.summary,
+                        score=round(score, 4),
+                        project=memory.project,
+                        tags=memory.tags,
+                        created_at=format_timestamp(memory.created_at),
+                    )
+                    for memory, score in top_res
+                ]
+
+            # candidate-first (existing) mode
             # 1) Get FTS candidates (id, bm25 rank), lower rank is better
             candidates = db.fts_search_candidates(query=query, project=project, limit=100)
 
@@ -259,7 +369,7 @@ class MemoryService:
                 return [
                     MemoryResult(
                         id=memory.id,
-                        text=memory.text,
+                        text=_payload_text(memory),
                         summary=memory.summary,
                         score=round(score, 4),
                         project=memory.project,
@@ -320,7 +430,7 @@ class MemoryService:
             return [
                 MemoryResult(
                     id=memory.id,
-                    text=memory.text,
+                    text=_payload_text(memory),
                     summary=memory.summary,
                     score=round(score, 4),
                     project=memory.project,
@@ -373,7 +483,7 @@ class MemoryService:
         return [
             MemoryResult(
                 id=memory.id,
-                text=memory.text,
+                text=_payload_text(memory),
                 summary=memory.summary,
                 score=round(score, 4),
                 project=memory.project,

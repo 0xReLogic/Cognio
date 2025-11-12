@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     similarity_threshold: float = 0.4
     hybrid_enabled: bool = False
     hybrid_alpha: float = 0.6
+    hybrid_mode: str = "candidate"  # candidate | rerank
+    hybrid_rerank_topk: int = 100
 
     # Performance
     max_text_length: int = 10000

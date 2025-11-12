@@ -6,7 +6,6 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any
 
 import requests
 
@@ -26,7 +25,7 @@ def import_from_json(file_path: Path, base_url: str, api_key: str | None = None)
     Returns:
         Number of memories imported
     """
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
 
     memories = data.get("memories", [])
@@ -86,7 +85,7 @@ def import_from_text(
     Returns:
         Number of memories imported
     """
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         lines = f.readlines()
 
     headers = {"X-API-Key": api_key} if api_key else {}
@@ -143,7 +142,7 @@ def import_from_markdown(
     Returns:
         Number of memories imported
     """
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         content = f.read()
 
     # Split by horizontal rules
@@ -244,7 +243,9 @@ def check_server_health(url: str) -> bool:
         return False
 
 
-def perform_import(format_type: str, file_path: Path, url: str, project: str | None, api_key: str | None) -> int:
+def perform_import(
+    format_type: str, file_path: Path, url: str, project: str | None, api_key: str | None
+) -> int:
     """
     Perform import based on format type.
 
@@ -316,7 +317,9 @@ Examples:
 
     format_type = detect_format(args.file, args.format)
     if not format_type:
-        logger.error(f"Cannot auto-detect format for {args.file.suffix} files. Use --format option.")
+        logger.error(
+            f"Cannot auto-detect format for {args.file.suffix} files. Use --format option."
+        )
         return 1
 
     logger.info(f"Importing from {args.file} (format: {format_type})")
@@ -326,15 +329,15 @@ Examples:
 
     try:
         imported = perform_import(format_type, args.file, args.url, args.project, args.api_key)
-        
+
         if imported < 0:
             return 1
-        
+
         if imported > 0:
             logger.info(f"Successfully imported {imported} memories")
         else:
             logger.warning("No new memories imported")
-        
+
         return 0
 
     except Exception as e:

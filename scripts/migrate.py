@@ -17,13 +17,15 @@ def get_current_version(conn: sqlite3.Connection) -> int:
 
 def init_version_table(conn: sqlite3.Connection) -> None:
     """Initialize schema version tracking table."""
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS schema_version (
             version INTEGER PRIMARY KEY,
             applied_at INTEGER NOT NULL,
             description TEXT
         )
-    """)
+    """
+    )
     conn.commit()
 
 
@@ -31,7 +33,8 @@ def migration_001_initial_schema(conn: sqlite3.Connection) -> None:
     """Initial database schema."""
     print("  Applying migration 001: Initial schema")
 
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS memories (
             id TEXT PRIMARY KEY,
             text TEXT NOT NULL,
@@ -42,7 +45,8 @@ def migration_001_initial_schema(conn: sqlite3.Connection) -> None:
             created_at INTEGER,
             updated_at INTEGER
         )
-    """)
+    """
+    )
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_project ON memories(project)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_created ON memories(created_at)")
@@ -116,7 +120,7 @@ def run_migrations(db_path: str) -> None:
             else:
                 print(f"  Warning: Migration {version} not found")
 
-        print(f"\nAll migrations completed successfully!")
+        print("\nAll migrations completed successfully!")
         print(f"Current version: {get_current_version(conn)}")
 
     except Exception as e:

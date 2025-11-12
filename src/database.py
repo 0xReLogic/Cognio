@@ -351,6 +351,34 @@ class Database:
             logger.warning(f"LIKE search failed: {e}")
             return []
 
+    def fts_rank_for_ids(
+        self, query: str, ids: list[str], project: str | None = None
+    ) -> dict[str, float]:
+        """Return BM25 ranks for a specific set of IDs using FTS5.
+
+        Only IDs present in the FTS match will be returned.
+        """
+        if not self.fts_ready or not ids:
+            return {}
+        # Build placeholders for IN clause
+        placeholders = ",".join(["?"] * len(ids))
+        sql = (
+            f"SELECT memories_fts.id AS id, bm25(memories_fts) AS rank "
+            f"FROM memories_fts JOIN memories m ON m.id = memories_fts.id "
+            f"WHERE m.archived = 0 AND memories_fts MATCH ? AND m.id IN ({placeholders})"
+        )
+        params: list[Any] = [query, *ids]
+        if project:
+            sql += " AND m.project = ?"
+            params.append(project)
+        try:
+            cursor = self.execute(sql, tuple(params))
+            rows = cursor.fetchall()
+            return {row["id"]: float(row["rank"]) for row in rows}
+        except sqlite3.OperationalError as e:
+            logger.warning(f"FTS rank for ids failed: {e}")
+            return {}
+
     def get_stats(self) -> dict[str, Any]:
         """Get database statistics."""
         total = self.count_memories()
