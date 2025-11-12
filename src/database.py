@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from .config import settings
-from .utils import get_timestamp
 from .models import Memory
+from .utils import get_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +267,7 @@ class Database:
         db_size = Path(self.db_path).stat().st_size if Path(self.db_path).exists() else 0
         storage_mb = db_size / (1024 * 1024)
 
+        # Backward-compatible keys expected by some tests
         return {
             "total_memories": total,
             "total_projects": len(memories_by_project),
@@ -275,6 +276,8 @@ class Database:
             "avg_text_length": round(avg_text_length, 0) if avg_text_length else 0,
             "memories_by_project": memories_by_project,
             "tags_distribution": tags_distribution,
+            "by_project": memories_by_project,
+            "top_tags": tags_distribution,
         }
 
     def _row_to_memory(self, row: sqlite3.Row) -> Memory:

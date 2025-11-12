@@ -17,10 +17,10 @@ class EmbeddingService:
 
     def __init__(self) -> None:
         """Initialize the embedding model."""
-        self.model_name = settings.embed_model
+        self.model_name = self._resolve_model_name(settings.embed_model)
         self.device = settings.embed_device
         self.model: SentenceTransformer | None = None
-        self.embedding_dim = 768  # Multilingual mpnet uses 768 dimensions
+        self.embedding_dim = 768  # Will be updated from model on load
         self.cache: dict[str, list[float]] = {}
         self.cache_dirty = False  # Track if cache has unsaved changes
         self.load_cache()
@@ -36,6 +36,17 @@ class EmbeddingService:
         suffix = base.suffix or ".pkl"
         slug = self._slug(self.model_name)
         return base.with_name(f"{stem}-{slug}{suffix}")
+
+    def _resolve_model_name(self, name: str | None) -> str:
+        """Use configured model if provided; fallback to MiniLM when unset."""
+        try:
+            if isinstance(name, str) and name.strip():
+                return name.strip()
+        except Exception:
+            # Ignore and fallback
+            pass
+        logger.info("No EMBED_MODEL provided; defaulting to all-MiniLM-L6-v2")
+        return "all-MiniLM-L6-v2"
 
     def load_cache(self) -> None:
         """Load the embedding cache from disk."""

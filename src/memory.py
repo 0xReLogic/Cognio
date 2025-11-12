@@ -5,6 +5,8 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+import numpy as np
+
 from .autotag import generate_tags
 from .config import settings
 from .database import db
@@ -148,19 +150,27 @@ class MemoryService:
             except ValueError:
                 pass  # Ignore invalid date format
 
-        # Calculate similarities
-        results: list[tuple[Memory, float]] = []
-        for memory in all_memories:
-            if memory.embedding is None:
-                continue
+        # Calculate similarities (vectorized for performance)
+        emb_dim = embedding_service.embedding_dim
+        mems_with_emb = [
+            m for m in all_memories if (m.embedding is not None and len(m.embedding) == emb_dim)
+        ]
 
-            score = embedding_service.cosine_similarity(query_embedding, memory.embedding)
-            if score >= threshold:
-                results.append((memory, score))
+        if not mems_with_emb:
+            return []
 
-        # Sort by score (descending) and take top-k
-        results.sort(key=lambda x: x[1], reverse=True)
-        results = results[:limit]
+        m_arr = np.asarray([m.embedding for m in mems_with_emb], dtype=np.float32)
+        q = np.asarray(query_embedding, dtype=np.float32)
+
+        q_norm = q / (np.linalg.norm(q) + 1e-12)
+        m_norm = m_arr / (np.linalg.norm(m_arr, axis=1, keepdims=True) + 1e-12)
+        scores = m_norm @ q_norm  # shape: (N,)
+
+        # Filter by threshold and prepare results
+        idxs = np.where(scores >= float(threshold))[0]
+        pairs = [(mems_with_emb[i], float(scores[i])) for i in idxs]
+        pairs.sort(key=lambda x: x[1], reverse=True)
+        results = pairs[:limit]
 
         # Convert to MemoryResult
         return [

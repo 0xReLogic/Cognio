@@ -19,7 +19,7 @@ def test_encode_single_text(embedding_service: EmbeddingService) -> None:
     embedding = embedding_service.encode(text, text_hash)
 
     assert isinstance(embedding, list)
-    assert len(embedding) == 768  # paraphrase-multilingual-mpnet-base-v2
+    assert len(embedding) == embedding_service.embedding_dim
     assert all(isinstance(x, float) for x in embedding)
 
 
@@ -29,7 +29,7 @@ def test_encode_batch(embedding_service: EmbeddingService) -> None:
     embeddings = embedding_service.encode_batch(texts)
 
     assert len(embeddings) == 3
-    assert all(len(emb) == 768 for emb in embeddings)  # paraphrase-multilingual-mpnet-base-v2
+    assert all(len(emb) == embedding_service.embedding_dim for emb in embeddings)
 
 
 def test_cosine_similarity(embedding_service: EmbeddingService) -> None:

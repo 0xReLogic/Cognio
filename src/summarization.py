@@ -7,18 +7,33 @@ from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
 
-try:
-    from .config import settings
-except ImportError:
-    from config import settings
+from .autotag import get_client
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
 # Initialize the sentence transformer model for extractive summarization
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = None
+
+
+def get_model() -> SentenceTransformer:
+    global model
+    if model is None:
+        # Prefer summarization-specific embed model; fallback to general embed model; then MiniLM
+        try:
+            model_name = (
+                getattr(settings, "summarization_embed_model", None)
+                or getattr(settings, "embed_model", None)
+                or "all-MiniLM-L6-v2"
+            )
+        except Exception:
+            model_name = "all-MiniLM-L6-v2"
+        model = SentenceTransformer(model_name)
+    return model
+
 
 # In-memory cache for summaries
-summary_cache = {}
+summary_cache: dict[str, str] = {}
 
 
 def extractive_summarize(text: str, num_sentences: int = 3) -> str:
@@ -38,7 +53,7 @@ def extractive_summarize(text: str, num_sentences: int = 3) -> str:
         return text
 
     # Embed the sentences
-    embeddings = model.encode(sentences)
+    embeddings = get_model().encode(sentences)
 
     # Cluster the sentences
     kmeans = KMeans(n_clusters=num_sentences, random_state=0)
@@ -68,12 +83,6 @@ def abstractive_summarize(text: str, max_length: int = 150) -> str:
         The generated summary.
     """
     try:
-        # Import here to avoid circular dependency
-        try:
-            from .autotag import get_client
-        except ImportError:
-            from autotag import get_client
-
         client = get_client()
         model_name = (
             settings.groq_model if settings.llm_provider == "groq" else settings.openai_model
@@ -104,9 +113,9 @@ Summary:"""
         )
 
         if response.choices:
-            summary = response.choices[0].message.content
-            if summary:
-                return summary.strip()
+            content = getattr(response.choices[0].message, "content", None)
+            if isinstance(content, str) and content.strip():
+                return content.strip()
 
         # Fallback to extractive if LLM fails
         logger.warning("Abstractive summarization failed, falling back to extractive")

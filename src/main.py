@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
 
 from .config import settings
 from .database import db
@@ -57,13 +58,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Optionally trigger background re-embedding for mismatched dimensions
     reembed_task = None
     if settings.auto_reembed_on_start:
+
         async def background_reembed() -> None:
             try:
                 logger.info("Auto re-embed on start: scanning for mismatched embeddings...")
                 stats = await asyncio.to_thread(memory_service.reembed_mismatched, 500)
                 logger.info(
                     "Auto re-embed completed: scanned=%s, reembedded=%s",
-                    stats.get("scanned"), stats.get("reembedded")
+                    stats.get("scanned"),
+                    stats.get("reembedded"),
                 )
             except Exception as e:
                 logger.error(f"Auto re-embed error: {e}")
@@ -71,7 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         reembed_task = asyncio.create_task(background_reembed())
 
     # Start periodic cache save task
-    async def periodic_cache_save():
+    async def periodic_cache_save() -> None:
         while True:
             await asyncio.sleep(300)  # Save every 5 minutes
             try:
@@ -87,7 +90,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Shutdown
     logger.info("Shutting down...")
     cache_task.cancel()
-    if 'reembed_task' in locals() and reembed_task:
+    if "reembed_task" in locals() and reembed_task:
         reembed_task.cancel()
     embedding_service.save_cache()
     db.close()
@@ -119,7 +122,9 @@ if web_ui_path.exists():
 
 # Request logging middleware
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def log_requests(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     """Log all requests with timing."""
     start_time = time.time()
     error = False
@@ -192,7 +197,12 @@ async def search_memory(
     project: str | None = Query(None, description=_FILTER_BY_PROJECT_DESC),
     tags: str | None = Query(None, description="Comma-separated tags"),
     limit: int = Query(5, ge=1, le=50, description="Maximum results"),
-    threshold: float | None = Query(None, ge=0.0, le=1.0, description="Minimum similarity score (defaults to SIMILARITY_THRESHOLD from env)"),
+    threshold: float | None = Query(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity score (defaults to SIMILARITY_THRESHOLD from env)",
+    ),
     after_date: str | None = Query(None, description="Filter memories after date (ISO 8601)"),
     before_date: str | None = Query(None, description="Filter memories before date (ISO 8601)"),
     authenticated: bool = Security(verify_api_key),
@@ -452,7 +462,7 @@ async def get_memory(
         memory = db.get_memory_by_id(memory_id)
         if not memory:
             raise HTTPException(status_code=404, detail="Memory not found")
-        
+
         return {
             "id": memory.id,
             "text": memory.text,

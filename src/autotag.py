@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 from groq import Groq
 from openai import OpenAI
@@ -28,7 +28,7 @@ Examples:
 """
 
 
-client = None
+client: Groq | OpenAI | None = None
 
 
 def get_client() -> Groq | OpenAI:
@@ -96,17 +96,21 @@ def generate_tags(text: str) -> dict[str, Any]:
         response = client.chat.completions.create(**create_kwargs)
 
         if response.choices:
-            content = response.choices[0].message.content
-            if content:
+            content = getattr(response.choices[0].message, "content", None)
+            if isinstance(content, str) and content.strip():
                 # Try to parse JSON response
                 try:
-                    result = json.loads(content)
-                    # Validate structure
-                    if "category" in result and "tags" in result:
-                        return result
-                    else:
-                        logger.warning(f"Invalid tag structure: {result}")
-                        return {"category": None, "tags": []}
+                    parsed = cast(dict[str, Any], json.loads(content))
+                    # Validate structure and coerce types safely
+                    category_val = parsed.get("category")
+                    tags_val = parsed.get("tags")
+                    category = category_val if isinstance(category_val, str) else None
+                    tags: list[str] = (
+                        [t for t in tags_val if isinstance(t, str)]
+                        if isinstance(tags_val, list)
+                        else []
+                    )
+                    return {"category": category, "tags": tags}
                 except json.JSONDecodeError:
                     logger.error(f"Failed to parse JSON response: {content}")
                     return {"category": None, "tags": []}

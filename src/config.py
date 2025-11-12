@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     db_path: str = "./data/memory.db"
 
     # Embeddings
-    embed_model: str = "paraphrase-multilingual-mpnet-base-v2"
+    embed_model: str = "all-MiniLM-L6-v2"
     embed_device: str = "cpu"
     embedding_cache_path: str = "./data/embedding_cache.pkl"
 
@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     # Summarization
     summarization_enabled: bool = True
     summarization_method: str = "abstractive"
+    summarization_embed_model: str = "all-MiniLM-L6-v2"
 
     # Re-embedding
     auto_reembed_on_start: bool = True

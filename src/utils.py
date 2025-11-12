@@ -3,6 +3,9 @@
 import hashlib
 from datetime import datetime, timezone
 
+# Python 3.10 compatibility for UTC alias
+UTC = getattr(datetime, "UTC", timezone.utc)  # noqa: UP017
+
 
 def generate_text_hash(text: str) -> str:
     """Generate SHA256 hash of text for deduplication."""
@@ -16,4 +19,4 @@ def get_timestamp() -> int:
 
 def format_timestamp(timestamp: int) -> str:
     """Convert Unix timestamp to ISO 8601 string."""
-    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
+    return datetime.fromtimestamp(timestamp, UTC).isoformat()
