@@ -24,6 +24,7 @@ class Database:
         """Initialize database connection."""
         self.db_path = db_path or settings.db_path
         self.conn: sqlite3.Connection | None = None
+        self.fts_ready: bool = False
 
     def connect(self) -> None:
         """Create database connection and initialize schema."""
@@ -68,8 +69,74 @@ class Database:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_hash ON memories(text_hash)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_archived ON memories(archived)")
 
+        # Initialize FTS5 (best-effort)
+        try:
+            # Virtual table for keyword search
+            cursor.execute(
+                """
+                CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+                    id UNINDEXED,
+                    text,
+                    project,
+                    tags
+                )
+                """
+            )
+
+            # Triggers to synchronize FTS index
+            cursor.execute(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_memories_ai_fts
+                AFTER INSERT ON memories BEGIN
+                  INSERT INTO memories_fts (id, text, project, tags)
+                  SELECT NEW.id, NEW.text, NEW.project, NEW.tags
+                  WHERE NEW.archived = 0;
+                END;
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_memories_au_fts
+                AFTER UPDATE ON memories BEGIN
+                  DELETE FROM memories_fts WHERE id = OLD.id;
+                  INSERT INTO memories_fts (id, text, project, tags)
+                  SELECT NEW.id, NEW.text, NEW.project, NEW.tags
+                  WHERE NEW.archived = 0;
+                END;
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_memories_ad_fts
+                AFTER DELETE ON memories BEGIN
+                  DELETE FROM memories_fts WHERE id = OLD.id;
+                END;
+                """
+            )
+
+            # Backfill missing FTS rows
+            cursor.execute(
+                """
+                INSERT INTO memories_fts (id, text, project, tags)
+                SELECT m.id, m.text, m.project, m.tags
+                FROM memories m
+                LEFT JOIN memories_fts f ON f.id = m.id
+                WHERE f.id IS NULL AND m.archived = 0
+                """
+            )
+
+            self.fts_ready = True
+        except sqlite3.OperationalError as e:
+            # FTS5 not available in this SQLite build
+            logger.warning(f"FTS5 not available or initialization failed: {e}")
+            self.fts_ready = False
+
         self.conn.commit()
         logger.info("Database schema initialized")
+
+    def has_fts(self) -> bool:
+        """Return whether FTS is ready for use."""
+        return self.fts_ready
 
     def close(self) -> None:
         """Close database connection."""
@@ -232,6 +299,57 @@ class Database:
         cursor = self.execute("SELECT * FROM memories WHERE archived = 0 ORDER BY created_at DESC")
         rows = cursor.fetchall()
         return [self._row_to_memory(row) for row in rows]
+
+    def fts_search_candidates(
+        self, query: str, project: str | None = None, limit: int = 50
+    ) -> list[tuple[str, float]]:
+        """Search FTS index and return candidate (id, bm25) pairs.
+
+        Lower bm25 indicates better match.
+        """
+        if not self.fts_ready:
+            return []
+
+        # Build query
+        sql = (
+            "SELECT memories_fts.id AS id, bm25(memories_fts) AS rank "
+            "FROM memories_fts JOIN memories m ON m.id = memories_fts.id "
+            "WHERE m.archived = 0 AND memories_fts MATCH ?"
+        )
+        params: list[Any] = [query]
+        if project:
+            sql += " AND m.project = ?"
+            params.append(project)
+
+        sql += " ORDER BY rank LIMIT ?"
+        params.append(limit)
+
+        try:
+            cursor = self.execute(sql, tuple(params))
+            rows = cursor.fetchall()
+            return [(row["id"], float(row["rank"])) for row in rows]
+        except sqlite3.OperationalError as e:
+            logger.warning(f"FTS search failed: {e}")
+            return []
+
+    def like_search_candidates(
+        self, query: str, project: str | None = None, limit: int = 100
+    ) -> list[str]:
+        """Return candidate ids using simple LIKE match on text when FTS yields no results."""
+        pattern = f"%{query}%"
+        sql = "SELECT id FROM memories WHERE archived = 0 AND text LIKE ?"
+        params: list[Any] = [pattern]
+        if project:
+            sql += " AND project = ?"
+            params.append(project)
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        try:
+            cursor = self.execute(sql, tuple(params))
+            return [row["id"] for row in cursor.fetchall()]
+        except sqlite3.OperationalError as e:
+            logger.warning(f"LIKE search failed: {e}")
+            return []
 
     def get_stats(self) -> dict[str, Any]:
         """Get database statistics."""

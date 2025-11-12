@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # Search
     default_search_limit: int = 5
     similarity_threshold: float = 0.4
+    hybrid_enabled: bool = False
+    hybrid_alpha: float = 0.6
 
     # Performance
     max_text_length: int = 10000

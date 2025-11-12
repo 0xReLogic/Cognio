@@ -121,17 +121,221 @@ class MemoryService:
         query_hash = generate_text_hash(query)
         query_embedding = embedding_service.encode(query, query_hash)
 
-        # Get all memories (with optional filters)
-        all_memories = db.get_all_memories()
+        # If hybrid is enabled and FTS is ready, try hybrid path first
+        if getattr(settings, "hybrid_enabled", False) and db.has_fts():
+            alpha = float(getattr(settings, "hybrid_alpha", 0.6))
+            # 1) Get FTS candidates (id, bm25 rank), lower rank is better
+            candidates = db.fts_search_candidates(query=query, project=project, limit=100)
 
-        # Filter by project and tags if specified
+            # 2) Load memories and apply additional filters (tags, date range)
+            all_memories = db.get_all_memories()
+            mem_by_id = {m.id: m for m in all_memories}
+            selected: list[tuple[Memory, float]] = []
+            for mid, rank in candidates:
+                m = mem_by_id.get(mid)
+                if not m:
+                    continue
+                # Tags filter
+                if tags and not any(t in m.tags for t in tags):
+                    continue
+                # Date filters
+                ok = True
+                if after_date:
+                    try:
+                        after_ts = int(
+                            datetime.fromisoformat(
+                                after_date.replace("Z", _TIMEZONE_OFFSET)
+                            ).timestamp()
+                        )
+                        if m.created_at < after_ts:
+                            ok = False
+                    except ValueError:
+                        pass
+                if ok and before_date:
+                    try:
+                        before_ts = int(
+                            datetime.fromisoformat(
+                                before_date.replace("Z", _TIMEZONE_OFFSET)
+                            ).timestamp()
+                        )
+                        if m.created_at > before_ts:
+                            ok = False
+                    except ValueError:
+                        pass
+                if ok:
+                    selected.append((m, rank))
+
+            # If no FTS candidates passed filters, try LIKE fallback; if still none, fallback semantic-only
+            if not selected:
+                like_ids: list[str] = []
+                if not candidates:
+                    like_ids = db.like_search_candidates(query=query, project=project, limit=100)
+                if like_ids:
+                    for mid in like_ids:
+                        m = mem_by_id.get(mid)
+                        if not m:
+                            continue
+                        if tags and not any(t in m.tags for t in tags):
+                            continue
+                        # Date filters
+                        ok2 = True
+                        if after_date:
+                            try:
+                                after_ts = int(
+                                    datetime.fromisoformat(
+                                        after_date.replace("Z", _TIMEZONE_OFFSET)
+                                    ).timestamp()
+                                )
+                                if m.created_at < after_ts:
+                                    ok2 = False
+                            except ValueError:
+                                pass
+                        if ok2 and before_date:
+                            try:
+                                before_ts = int(
+                                    datetime.fromisoformat(
+                                        before_date.replace("Z", _TIMEZONE_OFFSET)
+                                    ).timestamp()
+                                )
+                                if m.created_at > before_ts:
+                                    ok2 = False
+                            except ValueError:
+                                pass
+                        if ok2:
+                            # Use rank=0.0 so bm25_norm becomes 1.0 after normalization
+                            selected.append((m, 0.0))
+
+            if not selected:
+                # Fallback semantic-only path (original)
+                emb_dim = embedding_service.embedding_dim
+                base_memories = db.get_all_memories()
+                if project:
+                    base_memories = [m for m in base_memories if m.project == project]
+                if tags:
+                    base_memories = [m for m in base_memories if any(tag in m.tags for tag in tags)]
+                if after_date:
+                    try:
+                        after_ts = int(
+                            datetime.fromisoformat(
+                                after_date.replace("Z", _TIMEZONE_OFFSET)
+                            ).timestamp()
+                        )
+                        base_memories = [m for m in base_memories if m.created_at >= after_ts]
+                    except ValueError:
+                        pass
+                if before_date:
+                    try:
+                        before_ts = int(
+                            datetime.fromisoformat(
+                                before_date.replace("Z", _TIMEZONE_OFFSET)
+                            ).timestamp()
+                        )
+                        base_memories = [m for m in base_memories if m.created_at <= before_ts]
+                    except ValueError:
+                        pass
+
+                mems_with_emb = [
+                    m
+                    for m in base_memories
+                    if (m.embedding is not None and len(m.embedding) == emb_dim)
+                ]
+                if not mems_with_emb:
+                    return []
+                m_arr = np.asarray([m.embedding for m in mems_with_emb], dtype=np.float32)
+                q = np.asarray(query_embedding, dtype=np.float32)
+                q_norm = q / (np.linalg.norm(q) + 1e-12)
+                m_norm = m_arr / (np.linalg.norm(m_arr, axis=1, keepdims=True) + 1e-12)
+                scores = m_norm @ q_norm
+                # Threshold filtering (semantic)
+                thr = (
+                    float(threshold)
+                    if threshold is not None
+                    else float(settings.similarity_threshold)
+                )
+                idxs = np.where(scores >= thr)[0]
+                pairs = [(mems_with_emb[i], float(scores[i])) for i in idxs]
+                pairs.sort(key=lambda x: x[1], reverse=True)
+                topk = pairs[:limit]
+                return [
+                    MemoryResult(
+                        id=memory.id,
+                        text=memory.text,
+                        summary=memory.summary,
+                        score=round(score, 4),
+                        project=memory.project,
+                        tags=memory.tags,
+                        created_at=format_timestamp(memory.created_at),
+                    )
+                    for memory, score in topk
+                ]
+
+            # 3) Semantic scores only on selected candidates
+            emb_dim = embedding_service.embedding_dim
+            cand_mems = [
+                m
+                for (m, _) in selected
+                if (m.embedding is not None and len(m.embedding) == emb_dim)
+            ]
+            if not cand_mems:
+                return []
+            m_arr = np.asarray([m.embedding for m in cand_mems], dtype=np.float32)
+            q = np.asarray(query_embedding, dtype=np.float32)
+            q_norm = q / (np.linalg.norm(q) + 1e-12)
+            m_norm = m_arr / (np.linalg.norm(m_arr, axis=1, keepdims=True) + 1e-12)
+            sem_scores = m_norm @ q_norm  # higher is better
+
+            # 4) Normalize semantic scores to [0,1]
+            sem_min = float(np.min(sem_scores)) if sem_scores.size else 0.0
+            sem_max = float(np.max(sem_scores)) if sem_scores.size else 1.0
+            sem_range = sem_max - sem_min
+            if sem_scores.size == 1 or abs(sem_range) < 1e-12:
+                sem_norm = np.ones_like(sem_scores, dtype=np.float32)
+            else:
+                sem_norm = (sem_scores - sem_min) / (sem_range + 1e-12)
+
+            # 5) Convert BM25 ranks to scores and normalize to [0,1]
+            bm25_ranks = np.asarray([rank for (_, rank) in selected], dtype=np.float32)
+            bm25_inv = 1.0 / (1.0 + bm25_ranks)  # higher is better
+            bm_min = float(np.min(bm25_inv)) if bm25_inv.size else 0.0
+            bm_max = float(np.max(bm25_inv)) if bm25_inv.size else 1.0
+            bm_range = bm_max - bm_min
+            if bm25_inv.size == 1 or abs(bm_range) < 1e-12:
+                bm_norm = np.ones_like(bm25_inv, dtype=np.float32)
+            else:
+                bm_norm = (bm25_inv - bm_min) / (bm_range + 1e-12)
+
+            # 6) Combine
+            combined = alpha * sem_norm + (1.0 - alpha) * bm_norm
+
+            # 7) Apply threshold if provided (on combined)
+            thr = (
+                float(threshold) if threshold is not None else float(settings.similarity_threshold)
+            )
+            mask = combined >= thr
+            idxs = np.where(mask)[0]
+            pairs = [(cand_mems[i], float(combined[i])) for i in idxs]
+            pairs.sort(key=lambda x: x[1], reverse=True)
+            topk = pairs[:limit]
+
+            return [
+                MemoryResult(
+                    id=memory.id,
+                    text=memory.text,
+                    summary=memory.summary,
+                    score=round(score, 4),
+                    project=memory.project,
+                    tags=memory.tags,
+                    created_at=format_timestamp(memory.created_at),
+                )
+                for memory, score in topk
+            ]
+
+        # Semantic-only path (original)
+        all_memories = db.get_all_memories()
         if project:
             all_memories = [m for m in all_memories if m.project == project]
-
         if tags:
             all_memories = [m for m in all_memories if any(tag in m.tags for tag in tags)]
-
-        # Filter by date range
         if after_date:
             try:
                 after_ts = int(
@@ -139,8 +343,7 @@ class MemoryService:
                 )
                 all_memories = [m for m in all_memories if m.created_at >= after_ts]
             except ValueError:
-                pass  # Ignore invalid date format
-
+                pass
         if before_date:
             try:
                 before_ts = int(
@@ -148,31 +351,25 @@ class MemoryService:
                 )
                 all_memories = [m for m in all_memories if m.created_at <= before_ts]
             except ValueError:
-                pass  # Ignore invalid date format
+                pass
 
-        # Calculate similarities (vectorized for performance)
         emb_dim = embedding_service.embedding_dim
         mems_with_emb = [
             m for m in all_memories if (m.embedding is not None and len(m.embedding) == emb_dim)
         ]
-
         if not mems_with_emb:
             return []
-
         m_arr = np.asarray([m.embedding for m in mems_with_emb], dtype=np.float32)
         q = np.asarray(query_embedding, dtype=np.float32)
-
         q_norm = q / (np.linalg.norm(q) + 1e-12)
         m_norm = m_arr / (np.linalg.norm(m_arr, axis=1, keepdims=True) + 1e-12)
-        scores = m_norm @ q_norm  # shape: (N,)
+        scores = m_norm @ q_norm
 
-        # Filter by threshold and prepare results
-        idxs = np.where(scores >= float(threshold))[0]
+        thr = float(threshold) if threshold is not None else float(settings.similarity_threshold)
+        idxs = np.where(scores >= thr)[0]
         pairs = [(mems_with_emb[i], float(scores[i])) for i in idxs]
         pairs.sort(key=lambda x: x[1], reverse=True)
-        results = pairs[:limit]
-
-        # Convert to MemoryResult
+        topk = pairs[:limit]
         return [
             MemoryResult(
                 id=memory.id,
@@ -183,7 +380,7 @@ class MemoryService:
                 tags=memory.tags,
                 created_at=format_timestamp(memory.created_at),
             )
-            for memory, score in results
+            for memory, score in topk
         ]
 
     def list_memories(
