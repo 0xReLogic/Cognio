@@ -149,7 +149,7 @@ Always specify a `project` name OR use `set_active_project` to keep memories org
 |--------|----------|-------------|
 | GET | `/health` | Health check |
 | POST | `/memory/save` | Save new memory |
-| POST | `/memory/search` | Semantic search |
+| GET | `/memory/search` | Semantic/Hybrid search |
 | GET | `/memory/list` | List memories with filters |
 | DELETE | `/memory/{id}` | Delete memory by ID |
 | POST | `/memory/bulk-delete` | Bulk delete by project |
@@ -163,23 +163,55 @@ Interactive docs: http://localhost:8080/docs
 
 Environment variables (see `.env.example`):
 
+Copy the example and edit your local overrides:
+
+```bash
+cp .env.example .env
+```
+
 ```bash
 # Database
 DB_PATH=./data/memory.db
 
 # Embeddings
-EMBED_MODEL=paraphrase-multilingual-mpnet-base-v2
+EMBED_MODEL=all-MiniLM-L6-v2
 EMBED_DEVICE=cpu
+EMBEDDING_CACHE_PATH=./data/embedding_cache.pkl
 
 # API
 API_HOST=0.0.0.0
 API_PORT=8080
-API_KEY=your-secret-key  # Optional
+# Optional API key for auth
+API_KEY=your-secret-key
+
+# Search
+DEFAULT_SEARCH_LIMIT=5
+SIMILARITY_THRESHOLD=0.4
+HYBRID_ENABLED=true
+HYBRID_MODE=rerank        # candidate | rerank
+HYBRID_ALPHA=0.6          # 0..1, higher = more semantic
+HYBRID_RERANK_TOPK=100    # rerank candidate pool size
+
+# Summarization
+SUMMARIZATION_ENABLED=true
+SUMMARIZATION_METHOD=abstractive   # extractive | abstractive
+SUMMARIZATION_EMBED_MODEL=all-MiniLM-L6-v2
 
 # Auto-tagging (Optional)
 AUTOTAG_ENABLED=true
+LLM_PROVIDER=groq
 GROQ_API_KEY=your-groq-key
-GROQ_MODEL=openai/gpt-oss-120b 
+GROQ_MODEL=openai/gpt-oss-120b
+# OPENAI_API_KEY=your-openai-api-key
+# OPENAI_MODEL=gpt-4o-mini
+
+# Performance
+MAX_TEXT_LENGTH=10000
+BATCH_SIZE=32
+SUMMARIZE_THRESHOLD=50
+
+# Logging
+LOG_LEVEL=info
 ```
 
 **Auto-Tagging Models:**

@@ -114,33 +114,22 @@ curl -X POST http://localhost:8080/memory/save \
 
 ### Search Memories
 
-Semantic search based on meaning, not exact keyword matching.
+Semantic and hybrid search with optional keyword reranking.
 
-**Endpoint**: `POST /memory/search`
+**Endpoint**: `GET /memory/search`
 
 **Authentication**: None
 
-**Request Body**:
-```json
-{
-  "query": "search query",
-  "project": "PROJECT_NAME",
-  "tags": ["tag1"],
-  "limit": 5,
-  "threshold": 0.7,
-  "after_date": "2025-01-01",
-  "before_date": "2025-12-31"
-}
-```
-
-**Parameters**:
-- `query` (string, required): Search query
+**Query Parameters**:
+- `q` (string, required): Search query text
 - `project` (string, optional): Filter by project
-- `tags` (array, optional): Filter by tags (any match)
-- `limit` (integer, optional): Max results (default: 5, max: 100)
-- `threshold` (float, optional): Min similarity score 0-1 (default: 0.7)
+- `tags` (string, optional): Comma-separated tags (any match)
+- `limit` (integer, optional): Max results (default: 5, max: 50)
+- `threshold` (float, optional): Min similarity score 0-1 (default: 0.4)
 - `after_date` (string, optional): Filter memories after this date (ISO 8601)
 - `before_date` (string, optional): Filter memories before this date (ISO 8601)
+- `minimal` (boolean, optional): When true, returns summary or truncated text to save tokens
+- `max_chars_per_item` (integer, optional): Truncation length when `minimal=true` (1..10000)
 
 **Response**:
 ```json
@@ -160,23 +149,16 @@ Semantic search based on meaning, not exact keyword matching.
 }
 ```
 
-**Example**:
+**Examples**:
 ```bash
 # Basic search
-curl -X POST http://localhost:8080/memory/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "how to handle QRIS refunds", "limit": 3}'
+curl "http://localhost:8080/memory/search?q=how%20to%20handle%20QRIS%20refunds&limit=3"
 
 # With filters
-curl -X POST http://localhost:8080/memory/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "webhook validation",
-    "project": "SENTINEL",
-    "tags": ["qris"],
-    "after_date": "2025-01-01",
-    "threshold": 0.6
-  }'
+curl "http://localhost:8080/memory/search?q=webhook%20validation&project=SENTINEL&tags=qris&after_date=2025-01-01&threshold=0.6"
+
+# Minimal payload to reduce tokens
+curl "http://localhost:8080/memory/search?q=fastapi%20ports&minimal=true&max_chars_per_item=256"
 ```
 
 ---
