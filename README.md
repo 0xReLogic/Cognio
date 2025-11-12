@@ -302,8 +302,6 @@ uvicorn src.main:app --reload
 | Search (10k memories) | ~50ms | Still fast |
 | Model load | ~3s | One-time on startup |
 
-Memory footprint: ~1.5GB RAM (model + app)
-
 ## License
 
 MIT License - see [LICENSE](LICENSE)

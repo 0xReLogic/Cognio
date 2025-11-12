@@ -6,8 +6,7 @@ Get Cognio up and running in 5 minutes.
 
 - Python 3.11 or higher
 - Docker (optional, for container deployment)
-- 1.1GB free disk space (for default multilingual embedding model)
-  - Or 80MB if using lightweight model (all-MiniLM-L6-v2)
+- Sufficient free disk space (models are downloaded on first run)
 
 ## Option 1: Docker (Recommended)
 
@@ -54,8 +53,8 @@ uvicorn src.main:app --host 0.0.0.0 --port 8080
 ```
 
 On first run, the server will download the embedding model:
-- Default: `paraphrase-multilingual-mpnet-base-v2` (~1.1GB, best quality, 100+ languages)
-- Alternative: Set `EMBED_MODEL=all-MiniLM-L6-v2` in `.env` (~80MB, faster, English-focused)
+- Default: `paraphrase-multilingual-mpnet-base-v2` (multilingual, higher quality)
+- Alternative: Set `EMBED_MODEL=all-MiniLM-L6-v2` in `.env` (lighter, faster)
 
 Model download takes about 30-60 seconds depending on your connection.
 
@@ -147,8 +146,8 @@ nano .env
 DB_PATH=./data/memory.db
 
 # Embedding model (choose based on your needs)
-# Default: paraphrase-multilingual-mpnet-base-v2 (1.1GB, best quality, 100+ languages)
-# Fast: all-MiniLM-L6-v2 (80MB, good for English)
+# Default: paraphrase-multilingual-mpnet-base-v2 (multilingual, higher quality)
+# Fast: all-MiniLM-L6-v2 (lighter, faster)
 EMBED_MODEL=paraphrase-multilingual-mpnet-base-v2
 EMBED_DEVICE=cpu
 
