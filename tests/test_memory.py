@@ -226,3 +226,75 @@ def test_export_markdown() -> None:
     assert isinstance(data, str)
     assert "Export test" in data
     assert "TEST" in data
+
+
+def test_search_memory_minimal_truncation() -> None:
+    """Test search with minimal payload and truncation."""
+    long_text = "This is a long memory used to test minimal payload truncation behavior."
+    memory_service.save_memory(
+        SaveMemoryRequest(text=long_text, project="TEST", tags=["minimal"])
+    )
+
+    results = memory_service.search_memory(
+        query="minimal payload",
+        limit=1,
+        threshold=0.0,
+        minimal=True,
+        max_chars_per_item=10,
+    )
+
+    assert len(results) == 1
+    # Should be truncated and end with ellipsis character
+    assert len(results[0].text) == 11
+    assert results[0].text.endswith("…")
+
+
+def test_reembed_mismatched(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test reembed_mismatched scans and re-embeds only mismatched items."""
+    from src.models import Memory
+
+    mem1 = Memory(
+        id="1",
+        text="needs embed",
+        summary=None,
+        text_hash="h1",
+        embedding=None,
+        project="TEST",
+        tags=["t1"],
+        created_at=0,
+        updated_at=0,
+    )
+    mem2 = Memory(
+        id="2",
+        text="already ok",
+        summary=None,
+        text_hash="h2",
+        embedding=[0.1, 0.2, 0.3],
+        project="TEST",
+        tags=["t2"],
+        created_at=0,
+        updated_at=0,
+    )
+
+    calls: dict[str, list] = {"updates": []}
+
+    def fake_list_memories(limit: int = 500, offset: int = 0, **_: object) -> list[Memory]:
+        return [mem1, mem2] if offset == 0 else []
+
+    def fake_encode_batch(texts: list[str]) -> list[list[float]]:
+        return [[1.0, 2.0, 3.0] for _ in texts]
+
+    def fake_update_embedding(mem_id: str, emb: list[float]) -> bool:
+        calls["updates"].append((mem_id, emb))
+        return True
+
+    monkeypatch.setattr("src.memory.db.list_memories", fake_list_memories)
+    monkeypatch.setattr("src.memory.embedding_service.embedding_dim", 3)
+    monkeypatch.setattr("src.memory.embedding_service.encode_batch", fake_encode_batch)
+    monkeypatch.setattr("src.memory.db.update_embedding", fake_update_embedding)
+
+    stats = memory_service.reembed_mismatched(page_size=10)
+
+    assert stats["scanned"] == 2
+    assert stats["reembedded"] == 1
+    assert calls["updates"][0][0] == "1"
