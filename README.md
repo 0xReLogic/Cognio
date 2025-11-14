@@ -263,26 +263,6 @@ pytest
 uvicorn src.main:app --reload
 ```
 
-## Roadmap
-
-**v0.2.0** (Current)
-- [x] Auto-tagging with LLM
-- [x] MCP auto-setup for 9 AI clients
-- [x] LLM integration
-- [x] Text summarization (extractive & abstractive)
-- [ ] Web UI for memory management
-
-**v1.0.0**
-- [ ] Graph relationships (knowledge graph)
-- [ ] Full-text search (hybrid)
-- [ ] VSCode extension
-- [ ] Obsidian sync
-
-**v2.0.0**
-- [ ] Multi-user support
-- [ ] PostgreSQL backend option
-- [ ] Distributed deployment
-
 ## Tech Stack
 
 - **Backend**: Python 3.11+, FastAPI, Uvicorn
