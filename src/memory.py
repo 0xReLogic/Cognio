@@ -439,27 +439,29 @@ class MemoryService:
             ]
 
         # Semantic-only path (original)
-        all_memories = db.get_all_memories()
-        if project:
-            all_memories = [m for m in all_memories if m.project == project]
-        if tags:
-            all_memories = [m for m in all_memories if any(tag in m.tags for tag in tags)]
+        after_ts: int | None = None
+        before_ts: int | None = None
         if after_date:
             try:
                 after_ts = int(
                     datetime.fromisoformat(after_date.replace("Z", _TIMEZONE_OFFSET)).timestamp()
                 )
-                all_memories = [m for m in all_memories if m.created_at >= after_ts]
             except ValueError:
-                pass
+                after_ts = None
         if before_date:
             try:
                 before_ts = int(
                     datetime.fromisoformat(before_date.replace("Z", _TIMEZONE_OFFSET)).timestamp()
                 )
-                all_memories = [m for m in all_memories if m.created_at <= before_ts]
             except ValueError:
-                pass
+                before_ts = None
+
+        all_memories = db.get_all_memories(
+            project=project,
+            tags=tags,
+            after_timestamp=after_ts,
+            before_timestamp=before_ts,
+        )
 
         emb_dim = embedding_service.embedding_dim
         mems_with_emb = [
