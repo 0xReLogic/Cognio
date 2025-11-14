@@ -5,6 +5,7 @@ from collections.abc import Generator
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from src.config import settings
 from src.database import db
 from src.main import app
 
@@ -12,7 +13,7 @@ from src.main import app
 @pytest.fixture(autouse=True)
 def setup_test_db() -> Generator[None, None, None]:
     """Setup test database before each test."""
-    # Use in-memory database for tests
+    settings.api_key = None
     db.db_path = ":memory:"
     db.connect()
     yield
@@ -35,7 +36,11 @@ async def test_health_check() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/health")
         assert response.status_code == 200
-        assert response.json()["status"] == "healthy"
+        data = response.json()
+        assert data["status"] == "ok"
+        assert "db" in data
+        assert "fts" in data
+        assert "embedding_model" in data
 
 
 @pytest.mark.asyncio

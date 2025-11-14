@@ -39,7 +39,7 @@ curl -H "X-API-Key: your-secret-key-here" ...
 
 ### Health Check
 
-Check if the server is running.
+Lightweight health probe with dependency status.
 
 **Endpoint**: `GET /health`
 
@@ -48,8 +48,14 @@ Check if the server is running.
 **Response**:
 ```json
 {
-  "status": "healthy",
-  "version": "0.1.0"
+  "status": "ok",
+  "db": "ok",
+  "fts": "ready",
+  "embedding_model": {
+    "name": "all-MiniLM-L6-v2",
+    "loaded": true,
+    "dimension": 768
+  }
 }
 ```
 

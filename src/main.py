@@ -227,7 +227,7 @@ async def search_memory(
         SearchMemoryResponse with matching memories
     """
     try:
-        # Parse tags if provided
+        start_time = time.time()
         tag_list = [t.strip() for t in tags.split(",")] if tags else None
 
         results = memory_service.search_memory(
@@ -240,6 +240,16 @@ async def search_memory(
             before_date=before_date,
             minimal=minimal,
             max_chars_per_item=max_chars_per_item,
+        )
+
+        duration_ms = (time.time() - start_time) * 1000.0
+        logger.info(
+            "search q=%r project=%r limit=%d results=%d duration_ms=%.1f",
+            q,
+            project,
+            limit,
+            len(results),
+            duration_ms,
         )
 
         return SearchMemoryResponse(query=q, results=results, total=len(results))
@@ -413,9 +423,46 @@ async def export_memories(
 
 
 @app.get("/health")
-async def health_check() -> dict[str, str]:
+async def health_check() -> dict[str, Any]:
     """Health check endpoint."""
-    return {"status": "healthy"}
+
+    status = "ok"
+    db_status = "ok"
+    fts_status = "disabled"
+    embedding_info: dict[str, Any] = {}
+
+    try:
+        db.execute("SELECT 1")
+    except Exception as e:  # pragma: no cover - defensive
+        logger.error(f"Health check DB error: {e}")
+        status = "error"
+        db_status = "error"
+
+    try:
+        fts_status = "ready" if db.has_fts() else "disabled"
+    except Exception as e:  # pragma: no cover - defensive
+        logger.error(f"Health check FTS error: {e}")
+        status = "error"
+        fts_status = "error"
+
+    try:
+        model_loaded = embedding_service.model is not None
+        embedding_info = {
+            "name": embedding_service.model_name,
+            "loaded": model_loaded,
+            "dimension": embedding_service.embedding_dim if model_loaded else None,
+        }
+    except Exception as e:  # pragma: no cover - defensive
+        logger.error(f"Health check embedding error: {e}")
+        status = "error"
+        embedding_info = {"error": str(e)}
+
+    return {
+        "status": status,
+        "db": db_status,
+        "fts": fts_status,
+        "embedding_model": embedding_info,
+    }
 
 
 @app.post("/memory/summarize", response_model=SummarizeResponse)
