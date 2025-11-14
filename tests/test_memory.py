@@ -231,9 +231,7 @@ def test_export_markdown() -> None:
 def test_search_memory_minimal_truncation() -> None:
     """Test search with minimal payload and truncation."""
     long_text = "This is a long memory used to test minimal payload truncation behavior."
-    memory_service.save_memory(
-        SaveMemoryRequest(text=long_text, project="TEST", tags=["minimal"])
-    )
+    memory_service.save_memory(SaveMemoryRequest(text=long_text, project="TEST", tags=["minimal"]))
 
     results = memory_service.search_memory(
         query="minimal payload",

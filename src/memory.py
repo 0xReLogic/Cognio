@@ -237,42 +237,40 @@ class MemoryService:
             # 1) Get FTS candidates (id, bm25 rank), lower rank is better
             candidates = db.fts_search_candidates(query=query, project=project, limit=100)
 
-            # 2) Load memories and apply additional filters (tags, date range)
-            all_memories = db.get_all_memories()
-            mem_by_id = {m.id: m for m in all_memories}
+            after_ts: int | None = None
+            before_ts: int | None = None
+            if after_date:
+                try:
+                    after_ts = int(
+                        datetime.fromisoformat(
+                            after_date.replace("Z", _TIMEZONE_OFFSET)
+                        ).timestamp()
+                    )
+                except ValueError:
+                    after_ts = None
+            if before_date:
+                try:
+                    before_ts = int(
+                        datetime.fromisoformat(
+                            before_date.replace("Z", _TIMEZONE_OFFSET)
+                        ).timestamp()
+                    )
+                except ValueError:
+                    before_ts = None
+
+            candidate_ids = [mid for mid, _ in candidates]
+            base_memories = db.get_memories_by_ids(
+                ids=candidate_ids,
+                project=project,
+                tags=tags,
+                after_timestamp=after_ts,
+                before_timestamp=before_ts,
+            )
+            mem_by_id = {m.id: m for m in base_memories}
             selected: list[tuple[Memory, float]] = []
             for mid, rank in candidates:
                 m = mem_by_id.get(mid)
-                if not m:
-                    continue
-                # Tags filter
-                if tags and not any(t in m.tags for t in tags):
-                    continue
-                # Date filters
-                ok = True
-                if after_date:
-                    try:
-                        after_ts = int(
-                            datetime.fromisoformat(
-                                after_date.replace("Z", _TIMEZONE_OFFSET)
-                            ).timestamp()
-                        )
-                        if m.created_at < after_ts:
-                            ok = False
-                    except ValueError:
-                        pass
-                if ok and before_date:
-                    try:
-                        before_ts = int(
-                            datetime.fromisoformat(
-                                before_date.replace("Z", _TIMEZONE_OFFSET)
-                            ).timestamp()
-                        )
-                        if m.created_at > before_ts:
-                            ok = False
-                    except ValueError:
-                        pass
-                if ok:
+                if m:
                     selected.append((m, rank))
 
             # If no FTS candidates passed filters, try LIKE fallback; if still none, fallback semantic-only

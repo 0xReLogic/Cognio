@@ -294,6 +294,44 @@ class Database:
         self.commit()
         return cursor.rowcount
 
+    def get_memories_by_ids(
+        self,
+        ids: list[str],
+        project: str | None = None,
+        tags: list[str] | None = None,
+        after_timestamp: int | None = None,
+        before_timestamp: int | None = None,
+    ) -> list[Memory]:
+        """Get memories by IDs with optional filtering (excluding archived)."""
+        if not ids:
+            return []
+
+        placeholders = ",".join(["?"] * len(ids))
+        query = f"SELECT * FROM memories WHERE archived = 0 AND id IN ({placeholders})"
+        params: list[Any] = list(ids)
+
+        if project:
+            query += _PROJECT_FILTER_SQL
+            params.append(project)
+
+        if tags:
+            tag_conditions = " OR ".join(["tags LIKE ?" for _ in tags])
+            query += f" AND ({tag_conditions})"
+            params.extend([f'%"{tag}"%' for tag in tags])
+
+        if after_timestamp is not None:
+            query += " AND created_at >= ?"
+            params.append(after_timestamp)
+
+        if before_timestamp is not None:
+            query += " AND created_at <= ?"
+            params.append(before_timestamp)
+
+        query += " ORDER BY created_at DESC"
+        cursor = self.execute(query, tuple(params))
+        rows = cursor.fetchall()
+        return [self._row_to_memory(row) for row in rows]
+
     def get_all_memories(self) -> list[Memory]:
         """Get all memories (for semantic search, excluding archived)."""
         cursor = self.execute("SELECT * FROM memories WHERE archived = 0 ORDER BY created_at DESC")
