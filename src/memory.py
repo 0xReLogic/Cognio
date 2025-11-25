@@ -215,7 +215,7 @@ class MemoryService:
                     if threshold is not None
                     else float(settings.similarity_threshold)
                 )
-                idxs = np.where(combined >= thr)[0]
+                idxs = np.nonzero(combined >= thr)[0]
                 pairs = [(cand_mems[i], float(combined[i])) for i in idxs]
                 pairs.sort(key=lambda x: x[1], reverse=True)
                 top_res = pairs[:limit]
@@ -360,7 +360,7 @@ class MemoryService:
                     if threshold is not None
                     else float(settings.similarity_threshold)
                 )
-                idxs = np.where(scores >= thr)[0]
+                idxs = np.nonzero(scores >= thr)[0]
                 pairs = [(mems_with_emb[i], float(scores[i])) for i in idxs]
                 pairs.sort(key=lambda x: x[1], reverse=True)
                 topk = pairs[:limit]
@@ -420,7 +420,7 @@ class MemoryService:
                 float(threshold) if threshold is not None else float(settings.similarity_threshold)
             )
             mask = combined >= thr
-            idxs = np.where(mask)[0]
+            idxs = np.nonzero(mask)[0]
             pairs = [(cand_mems[i], float(combined[i])) for i in idxs]
             pairs.sort(key=lambda x: x[1], reverse=True)
             topk = pairs[:limit]
@@ -476,7 +476,7 @@ class MemoryService:
         scores = m_norm @ q_norm
 
         thr = float(threshold) if threshold is not None else float(settings.similarity_threshold)
-        idxs = np.where(scores >= thr)[0]
+        idxs = np.nonzero(scores >= thr)[0]
         pairs = [(mems_with_emb[i], float(scores[i])) for i in idxs]
         pairs.sort(key=lambda x: x[1], reverse=True)
         topk = pairs[:limit]

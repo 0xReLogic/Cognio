@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Constants
 _DB_NOT_CONNECTED_ERROR = "Database not connected"
 _PROJECT_FILTER_SQL = " AND project = ?"
+_TAGS_LIKE_SQL = "tags LIKE ?"
 
 
 class Database:
@@ -222,7 +223,7 @@ class Database:
 
         if tags:
             # Simple tag filtering (checks if ANY tag matches)
-            tag_conditions = " OR ".join(["tags LIKE ?" for _ in tags])
+            tag_conditions = " OR ".join([_TAGS_LIKE_SQL for _ in tags])
             query += f" AND ({tag_conditions})"
             params.extend([f'%"{tag}"%' for tag in tags])
 
@@ -244,7 +245,7 @@ class Database:
             params.append(project)
 
         if tags:
-            tag_conditions = " OR ".join(["tags LIKE ?" for _ in tags])
+            tag_conditions = " OR ".join([_TAGS_LIKE_SQL for _ in tags])
             query += f" AND ({tag_conditions})"
             params.extend([f'%"{tag}"%' for tag in tags])
 
@@ -315,7 +316,7 @@ class Database:
             params.append(project)
 
         if tags:
-            tag_conditions = " OR ".join(["tags LIKE ?" for _ in tags])
+            tag_conditions = " OR ".join([_TAGS_LIKE_SQL for _ in tags])
             query += f" AND ({tag_conditions})"
             params.extend([f'%"{tag}"%' for tag in tags])
 
@@ -348,7 +349,7 @@ class Database:
             params.append(project)
 
         if tags:
-            tag_conditions = " OR ".join(["tags LIKE ?" for _ in tags])
+            tag_conditions = " OR ".join([_TAGS_LIKE_SQL for _ in tags])
             query += f" AND ({tag_conditions})"
             params.extend([f'%"{tag}"%' for tag in tags])
 
