@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/0xrelogic-cognio-badge.png)](https://mseep.ai/app/0xrelogic-cognio)
+
 # Cognio
 
 > Persistent semantic memory server for AI assistants via Model Context Protocol (MCP)
