@@ -73,7 +73,7 @@ class EmbeddingService:
         """Load the sentence-transformer model."""
         if self.model is None:
             logger.info(f"Loading embedding model: {self.model_name}")
-            self.model = SentenceTransformer(self.model_name, device=self.device)
+            self.model = SentenceTransformer(self.model_name, device=self.device, trust_remote_code=True)
             self.embedding_dim = self.model.get_sentence_embedding_dimension()
             logger.info(f"Model loaded. Embedding dimension: {self.embedding_dim}")
 
