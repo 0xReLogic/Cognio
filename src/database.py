@@ -459,8 +459,6 @@ class Database:
         ids = [result.id for result in results]
         if not project or not ids:
             return ids
-        if metadata_filters:
-            return ids
 
         allowed = {m.id for m in self.get_memories_by_ids(ids=ids, project=project)}
         return [mid for mid in ids if mid in allowed]
