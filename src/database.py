@@ -27,6 +27,7 @@ class Database:
         self.db_path = db_path or settings.db_path
         self.conn: sqlite3.Connection | None = None
         self.fts_ready: bool = False
+        self.leann_engine: Any | None = None
 
     def connect(self) -> None:
         """Create database connection and initialize schema."""
