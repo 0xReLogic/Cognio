@@ -168,15 +168,37 @@ class MemoryService:
                 mems_with_emb = [
                     m
                     for m in all_memories
-                    if (m.embedding is not None and len(m.embedding) == emb_dim)
+                    if m.embedding_dim == emb_dim and m.embedding is not None
                 ]
-                if not mems_with_emb:
-                    return []
-                m_arr = np.asarray([m.embedding for m in mems_with_emb], dtype=np.float32)
-                q = np.asarray(query_embedding, dtype=np.float32)
-                q_norm = q / (np.linalg.norm(q) + 1e-12)
-                m_norm = m_arr / (np.linalg.norm(m_arr, axis=1, keepdims=True) + 1e-12)
-                sem_scores_all = m_norm @ q_norm
+
+                # If LEANN is available, use it for candidate generation
+                if db.leann_engine and db.leann_engine.graph.number_of_nodes() > 0:
+                    leann_ids = db.leann_search(query, limit=100, project=project)
+                    leann_ids_set = set(leann_ids)
+                    mems_with_emb = [m for m in mems_with_emb if m.id in leann_ids_set]
+
+                # If Engram is enabled, use it to pre-filter candidates
+                if getattr(settings, "engram_enabled", False):
+                    try:
+                        engram_ids = [mid for mid, _ in db.engram_search_candidates(
+                            query=query,
+                            project=project,
+                            limit=getattr(settings, "engram_candidate_limit", 200),
+                        )]
+                        engram_ids_set = set(engram_ids)
+                        mems_with_emb = [m for m in mems_with_emb if m.id in engram_ids_set]
+                        logger.info(
+                            "candidate_counts q=%r fts=0 engram=%d merged=%d",
+                            query,
+                            len(engram_ids),
+                            len(mems_with_emb),
+                        )
+                    except Exception as e:
+                        logger.warning(f"Engram candidate lookup failed: {e}")
+
+                # Encode memories in batches
+                embeddings = embedding_service.encode_batch([m.text for m in mems_with_emb])
+                sem_scores_all = np.dot(embeddings, query_embedding).astype(np.float32)
 
                 # Select top-K for rerank
                 topk = int(getattr(settings, "hybrid_rerank_topk", 100))
