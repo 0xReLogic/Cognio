@@ -663,6 +663,8 @@ class Database:
         if row["embedding"]:
             embedding = json.loads(row["embedding"].decode("utf-8"))
 
+        embedding_dim = len(embedding) if embedding else None
+
         tags = json.loads(row["tags"]) if row["tags"] else []
 
         return Memory(
@@ -670,6 +672,7 @@ class Database:
             text=row["text"],
             text_hash=row["text_hash"],
             embedding=embedding,
+            embedding_dim=embedding_dim,
             project=row["project"],
             tags=tags,
             created_at=row["created_at"],
