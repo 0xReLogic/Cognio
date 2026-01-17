@@ -443,14 +443,23 @@ class Database:
             return []
         if self.leann_engine is None:
             return []
+        metadata_filters: dict[str, Any] | None = None
+        if project:
+            metadata_filters = {"project": {"==": project}}
         try:
-            results = self.leann_engine.search(query, top_k=limit)
+            results = self.leann_engine.search(
+                query,
+                top_k=limit,
+                metadata_filters=metadata_filters,
+            )
         except Exception as e:
             logger.warning(f"LEANN search failed: {e}")
             return []
 
         ids = [result.id for result in results]
         if not project or not ids:
+            return ids
+        if metadata_filters:
             return ids
 
         allowed = {m.id for m in self.get_memories_by_ids(ids=ids, project=project)}
