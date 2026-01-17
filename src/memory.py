@@ -342,39 +342,20 @@ class MemoryService:
                 if not candidates:
                     like_ids = db.like_search_candidates(query=query, project=project, limit=100)
                 if like_ids:
+                    like_memories = db.get_memories_by_ids(
+                        ids=like_ids,
+                        project=project,
+                        tags=tags,
+                        after_timestamp=after_ts,
+                        before_timestamp=before_ts,
+                    )
+                    like_mem_by_id = {m.id: m for m in like_memories}
                     for mid in like_ids:
-                        m = mem_by_id.get(mid)
+                        m = like_mem_by_id.get(mid)
                         if not m:
                             continue
-                        if tags and not any(t in m.tags for t in tags):
-                            continue
-                        # Date filters
-                        ok2 = True
-                        if after_date:
-                            try:
-                                after_ts = int(
-                                    datetime.fromisoformat(
-                                        after_date.replace("Z", _TIMEZONE_OFFSET)
-                                    ).timestamp()
-                                )
-                                if m.created_at < after_ts:
-                                    ok2 = False
-                            except ValueError:
-                                pass
-                        if ok2 and before_date:
-                            try:
-                                before_ts = int(
-                                    datetime.fromisoformat(
-                                        before_date.replace("Z", _TIMEZONE_OFFSET)
-                                    ).timestamp()
-                                )
-                                if m.created_at > before_ts:
-                                    ok2 = False
-                            except ValueError:
-                                pass
-                        if ok2:
-                            # Use rank=0.0 so bm25_norm becomes 1.0 after normalization
-                            selected.append((m, 0.0))
+                        # Use rank=0.0 so bm25_norm becomes 1.0 after normalization
+                        selected.append((m, 0.0))
 
             if not selected:
                 # Fallback semantic-only path (original)
