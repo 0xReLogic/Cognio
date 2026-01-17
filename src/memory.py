@@ -249,6 +249,14 @@ class MemoryService:
                 except Exception as e:
                     logger.warning(f"Engram candidate lookup failed: {e}")
 
+            logger.info(
+                "candidate_counts q=%r fts=%d engram=%d merged=%d",
+                query,
+                len(candidates) - (len(engram_candidates) if engram_candidates else 0),
+                len(engram_candidates),
+                len(candidates),
+            )
+
             if engram_candidates:
                 merged: dict[str, float] = {mid: float(rank) for mid, rank in candidates}
                 for mid, hits in engram_candidates:
@@ -258,14 +266,6 @@ class MemoryService:
                     else:
                         merged[mid] = rank
                 candidates = sorted(merged.items(), key=lambda x: x[1])
-
-            logger.info(
-                "candidate_counts q=%r fts=%d engram=%d merged=%d",
-                query,
-                len(candidates) - (len(engram_candidates) if engram_candidates else 0),
-                len(engram_candidates),
-                len(candidates),
-            )
 
             after_ts: int | None = None
             before_ts: int | None = None
