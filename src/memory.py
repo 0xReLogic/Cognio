@@ -259,6 +259,14 @@ class MemoryService:
                         merged[mid] = rank
                 candidates = sorted(merged.items(), key=lambda x: x[1])
 
+            logger.info(
+                "candidate_counts q=%r fts=%d engram=%d merged=%d",
+                query,
+                len(candidates) - (len(engram_candidates) if engram_candidates else 0),
+                len(engram_candidates),
+                len(candidates),
+            )
+
             after_ts: int | None = None
             before_ts: int | None = None
             if after_date:
