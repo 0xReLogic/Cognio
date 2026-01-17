@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     leann_lazy_build: bool = True
     leann_recompute_on_search: bool = True
     leann_warmup_on_start: bool = False
+    leann_idle_build: bool = False
+    leann_idle_seconds: int = 300
+    leann_idle_check_interval: int = 60
 
     # Performance
     max_text_length: int = 10000

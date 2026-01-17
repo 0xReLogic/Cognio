@@ -68,6 +68,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.warning("LEANN init failed: %s", e)
 
+    app.state.last_request_ts = time.time()
+    app.state.leann_idle_building = False
+
     # Optionally trigger background re-embedding for mismatched dimensions
     reembed_task = None
     if settings.auto_reembed_on_start:
@@ -96,6 +99,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 logger.error(f"Error in periodic cache save: {e}")
 
     cache_task = asyncio.create_task(periodic_cache_save())
+
+    idle_leann_task = None
+    if settings.leann_enabled and settings.leann_idle_build:
+
+        async def idle_leann_builder() -> None:
+            index_path = Path(settings.leann_index_path).expanduser().resolve()
+            meta_path = Path(f"{index_path}.meta.json")
+            while True:
+                await asyncio.sleep(settings.leann_idle_check_interval)
+                last_ts = getattr(app.state, "last_request_ts", None)
+                if last_ts is None:
+                    app.state.last_request_ts = time.time()
+                    continue
+                idle_for = time.time() - float(last_ts)
+                if idle_for < settings.leann_idle_seconds:
+                    continue
+                if app.state.leann_idle_building:
+                    continue
+                if not db.leann_dirty and meta_path.exists():
+                    continue
+                app.state.leann_idle_building = True
+                try:
+                    logger.info("LEANN idle build: starting (idle_for=%.1fs)", idle_for)
+                    built = await asyncio.to_thread(db.build_leann_index)
+                    if built:
+                        logger.info("LEANN idle build: completed")
+                    else:
+                        logger.info("LEANN idle build: skipped")
+                except Exception as e:
+                    logger.warning("LEANN idle build failed: %s", e)
+                finally:
+                    app.state.leann_idle_building = False
+
+        idle_leann_task = asyncio.create_task(idle_leann_builder())
     logger.info("Server ready!")
 
     yield
@@ -105,6 +142,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     cache_task.cancel()
     if "reembed_task" in locals() and reembed_task:
         reembed_task.cancel()
+    if "idle_leann_task" in locals() and idle_leann_task:
+        idle_leann_task.cancel()
     embedding_service.save_cache()
     db.close()
 
@@ -140,6 +179,10 @@ async def log_requests(
 ) -> Response:
     """Log all requests with timing."""
     start_time = time.time()
+    try:
+        request.app.state.last_request_ts = start_time
+    except Exception:
+        pass
     error = False
 
     try:
