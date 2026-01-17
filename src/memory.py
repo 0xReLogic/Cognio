@@ -438,6 +438,10 @@ class MemoryService:
                 ]
 
             # 3) Semantic scores only on selected candidates
+            # Additional safety check for empty arrays
+            if not selected:
+                return []
+                
             emb_dim = embedding_service.embedding_dim
             cand_mems = [
                 m
@@ -445,10 +449,6 @@ class MemoryService:
                 if (m.embedding is not None and len(m.embedding) == emb_dim)
             ]
             if not cand_mems:
-                return []
-            
-            # Additional safety check for empty arrays
-            if not selected:
                 return []
             m_arr = np.asarray([m.embedding for m in cand_mems], dtype=np.float32)
             q = np.asarray(query_embedding, dtype=np.float32)
