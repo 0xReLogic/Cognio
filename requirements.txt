@@ -12,6 +12,8 @@ numpy>=1.26.0,<2.0.0
 openai>=1.3.3,<2.0.0
 groq>=0.4.0,<1.0.0
 scikit-learn>=1.3.2,<2.0.0
+leann-core>=0.3.6,<0.4.0
+leann-backend-hnsw>=0.3.6,<0.4.0
 
 # Development dependencies (optional)
 pytest>=7.4.3

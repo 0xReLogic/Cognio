@@ -18,6 +18,7 @@ Cognio is a Model Context Protocol (MCP) server that provides persistent semanti
 ## Features
 
 - **Semantic Search**: Find memories by meaning using sentence-transformers
+- **LEANN Vector Search (Optional)**: Lazy-built index with on-demand recomputation to reduce startup memory
 - **Multilingual Support**: Search in 100+ languages seamlessly
 - **Persistent Storage**: SQLite-based storage that survives across sessions
 - **Project Organization**: Organize memories by project and tags
@@ -191,6 +192,14 @@ HYBRID_ENABLED=true
 HYBRID_MODE=rerank        # candidate | rerank
 HYBRID_ALPHA=0.6          # 0..1, higher = more semantic
 HYBRID_RERANK_TOPK=100    # rerank candidate pool size
+
+# LEANN vector search (optional)
+LEANN_ENABLED=false
+LEANN_INDEX_PATH=./data/leann/memories.leann
+LEANN_BACKEND=hnsw
+LEANN_LAZY_BUILD=true
+LEANN_RECOMPUTE_ON_SEARCH=true
+LEANN_WARMUP_ON_START=false
 
 # Summarization
 SUMMARIZATION_ENABLED=true

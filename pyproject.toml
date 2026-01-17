@@ -27,6 +27,8 @@ python-dotenv = "^1.0.0"
 numpy = "^1.26.0"
 httpx = "^0.25.2"
 groq = "^0.4.0"
+leann-core = "^0.3.6"
+leann-backend-hnsw = "^0.3.6"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"

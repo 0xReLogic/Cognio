@@ -28,6 +28,7 @@ class Database:
         self.conn: sqlite3.Connection | None = None
         self.fts_ready: bool = False
         self.leann_engine: Any | None = None
+        self.leann_dirty: bool = False
 
     def connect(self) -> None:
         """Create database connection and initialize schema."""
@@ -235,6 +236,7 @@ class Database:
             tuple(memory_ids),
         )
         self.commit()
+        self.leann_dirty = True
 
     def engram_search_candidates(
         self, query: str, project: str | None = None, limit: int | None = None
@@ -276,8 +278,187 @@ class Database:
             logger.warning(f"Engram search failed: {e}")
             return []
 
+    def _leann_index_path(self) -> Path:
+        return Path(settings.leann_index_path).expanduser().resolve()
+
+    def _leann_meta_path(self, index_path: Path) -> Path:
+        return Path(f"{index_path}.meta.json")
+
+    def _cleanup_leann_engine(self) -> None:
+        engine = self.leann_engine
+        self.leann_engine = None
+        if engine is None:
+            return
+        cleanup = getattr(engine, "cleanup", None)
+        if callable(cleanup):
+            try:
+                cleanup()
+            except Exception as e:
+                logger.warning(f"LEANN cleanup failed: {e}")
+
+    def _load_leann_engine(self) -> bool:
+        if not settings.leann_enabled:
+            return False
+        try:
+            from leann import LeannSearcher
+        except Exception as e:
+            logger.warning(f"LEANN not available: {e}")
+            return False
+
+        index_path = self._leann_index_path()
+        meta_path = self._leann_meta_path(index_path)
+        if not meta_path.exists():
+            logger.info("LEANN index not found: %s", meta_path)
+            return False
+
+        try:
+            self.leann_engine = LeannSearcher(
+                str(index_path),
+                enable_warmup=bool(settings.leann_warmup_on_start),
+                recompute_embeddings=bool(settings.leann_recompute_on_search),
+            )
+            self.leann_dirty = False
+            logger.info("LEANN searcher loaded: %s", index_path)
+            return True
+        except Exception as e:
+            logger.warning(f"LEANN searcher load failed: {e}")
+            self.leann_engine = None
+            return False
+
+    def build_leann_index(self) -> bool:
+        if not settings.leann_enabled:
+            return False
+        if self.conn is None:
+            raise RuntimeError(_DB_NOT_CONNECTED_ERROR)
+
+        try:
+            from leann import LeannBuilder
+        except Exception as e:
+            logger.warning(f"LEANN not available: {e}")
+            return False
+
+        from .embeddings import embedding_service
+
+        embedding_service.load_model()
+        emb_dim = embedding_service.embedding_dim
+
+        backend_kwargs: dict[str, Any] = {}
+        if settings.leann_backend == "hnsw":
+            backend_kwargs["is_recompute"] = bool(settings.leann_recompute_on_search)
+            if not settings.leann_recompute_on_search:
+                backend_kwargs["is_compact"] = False
+
+        builder = LeannBuilder(
+            backend_name=settings.leann_backend,
+            embedding_model=embedding_service.model_name,
+            embedding_mode="sentence-transformers",
+            dimensions=emb_dim,
+            **backend_kwargs,
+        )
+
+        cursor = self.execute(
+            "SELECT id, text, embedding, project FROM memories "
+            "WHERE archived = 0 AND embedding IS NOT NULL"
+        )
+        rows = cursor.fetchall()
+        ids: list[str] = []
+        embeddings: list[list[float]] = []
+        for row in rows:
+            try:
+                emb = json.loads(row["embedding"].decode("utf-8"))
+            except Exception:
+                continue
+            if emb and len(emb) == emb_dim:
+                memory_id = row["id"]
+                ids.append(memory_id)
+                embeddings.append(emb)
+                metadata: dict[str, Any] = {"id": memory_id}
+                if row["project"]:
+                    metadata["project"] = row["project"]
+                builder.add_text(row["text"] or "", metadata=metadata)
+
+        if not ids:
+            logger.info("LEANN build skipped: no embeddings available")
+            return False
+
+        import numpy as np
+        import os
+        import pickle
+        import tempfile
+
+        index_path = self._leann_index_path()
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+
+        embeddings_arr = np.asarray(embeddings, dtype=np.float32)
+        temp_path = None
+        try:
+            with tempfile.NamedTemporaryFile("wb", delete=False) as tmp_file:
+                pickle.dump((ids, embeddings_arr), tmp_file)
+                temp_path = tmp_file.name
+            builder.build_index_from_embeddings(str(index_path), temp_path)
+        finally:
+            if temp_path:
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+
+        self.leann_dirty = False
+        self.leann_engine = None
+        logger.info("LEANN index built: entries=%d path=%s", len(ids), index_path)
+        return True
+
+    def ensure_leann_engine(self, build_if_missing: bool = False) -> bool:
+        if not settings.leann_enabled:
+            return False
+
+        if self.leann_engine and not self.leann_dirty:
+            return True
+
+        if self.leann_engine and self.leann_dirty:
+            self._cleanup_leann_engine()
+
+        index_path = self._leann_index_path()
+        meta_path = self._leann_meta_path(index_path)
+        if meta_path.exists() and not self.leann_dirty:
+            return self._load_leann_engine()
+
+        if not build_if_missing:
+            return False
+
+        if not self.build_leann_index():
+            return False
+        return self._load_leann_engine()
+
+    def maybe_init_leann(self) -> None:
+        if not settings.leann_enabled:
+            return
+        if settings.leann_lazy_build and not settings.leann_warmup_on_start:
+            return
+        build_if_missing = not settings.leann_lazy_build
+        self.ensure_leann_engine(build_if_missing=build_if_missing)
+
+    def leann_search(self, query: str, limit: int = 5, project: str | None = None) -> list[str]:
+        if not self.ensure_leann_engine(build_if_missing=True):
+            return []
+        if self.leann_engine is None:
+            return []
+        try:
+            results = self.leann_engine.search(query, top_k=limit)
+        except Exception as e:
+            logger.warning(f"LEANN search failed: {e}")
+            return []
+
+        ids = [result.id for result in results]
+        if not project or not ids:
+            return ids
+
+        allowed = {m.id for m in self.get_memories_by_ids(ids=ids, project=project)}
+        return [mid for mid in ids if mid in allowed]
+
     def close(self) -> None:
         """Close database connection."""
+        self._cleanup_leann_engine()
         if self.conn:
             self.conn.close()
             logger.info("Database connection closed")
@@ -405,6 +586,8 @@ class Database:
             except Exception as e:
                 logger.warning(f"Engram index cleanup failed: {e}")
         self.commit()
+        if deleted:
+            self.leann_dirty = True
         return deleted
 
     def update_embedding(self, memory_id: str, embedding: list[float]) -> bool:
@@ -416,6 +599,8 @@ class Database:
             (embedding_bytes, updated_at, memory_id),
         )
         self.commit()
+        if cursor.rowcount > 0:
+            self.leann_dirty = True
         return cursor.rowcount > 0
 
     def archive_memory(self, memory_id: str) -> bool:
@@ -430,6 +615,8 @@ class Database:
             except Exception as e:
                 logger.warning(f"Engram index cleanup failed: {e}")
         self.commit()
+        if archived:
+            self.leann_dirty = True
         return archived
 
     def bulk_delete(self, project: str | None = None, before_timestamp: int | None = None) -> int:
@@ -458,6 +645,8 @@ class Database:
                 self.delete_engram_for_ids(ids)
             except Exception as e:
                 logger.warning(f"Engram index cleanup failed: {e}")
+        if cursor.rowcount > 0:
+            self.leann_dirty = True
         return cursor.rowcount
 
     def get_memories_by_ids(

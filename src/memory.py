@@ -172,11 +172,11 @@ class MemoryService:
                 ]
 
                 # If LEANN is available, use it for candidate generation
-                leann_engine = getattr(db, "leann_engine", None)
-                if leann_engine and leann_engine.graph.number_of_nodes() > 0:
+                if settings.leann_enabled:
                     leann_ids = db.leann_search(query, limit=100, project=project)
-                    leann_ids_set = set(leann_ids)
-                    mems_with_emb = [m for m in mems_with_emb if m.id in leann_ids_set]
+                    if leann_ids:
+                        leann_ids_set = set(leann_ids)
+                        mems_with_emb = [m for m in mems_with_emb if m.id in leann_ids_set]
 
                 # If Engram is enabled, use it to pre-filter candidates
                 if getattr(settings, "engram_enabled", False):
@@ -279,24 +279,38 @@ class MemoryService:
                 except Exception as e:
                     logger.warning(f"Engram candidate lookup failed: {e}")
 
+            leann_ids: list[str] = []
+            if settings.leann_enabled:
+                try:
+                    leann_ids = db.leann_search(query, limit=100, project=project)
+                except Exception as e:
+                    logger.warning(f"LEANN candidate lookup failed: {e}")
+
             fts_count = len(candidates)
             engram_count = len(engram_candidates)
+            leann_count = len(leann_ids)
 
-            if engram_candidates:
+            if engram_candidates or leann_ids:
                 merged: dict[str, float] = {mid: float(rank) for mid, rank in candidates}
-                for mid, hits in engram_candidates:
-                    rank = 1.0 / max(float(hits), 1.0)
-                    if mid in merged:
-                        merged[mid] = min(merged[mid], rank)
-                    else:
-                        merged[mid] = rank
+                if engram_candidates:
+                    for mid, hits in engram_candidates:
+                        rank = 1.0 / max(float(hits), 1.0)
+                        if mid in merged:
+                            merged[mid] = min(merged[mid], rank)
+                        else:
+                            merged[mid] = rank
+                if leann_ids:
+                    for mid in leann_ids:
+                        if mid not in merged:
+                            merged[mid] = 1e6
                 candidates = sorted(merged.items(), key=lambda x: x[1])
 
             logger.info(
-                "candidate_counts q=%r fts=%d engram=%d merged=%d",
+                "candidate_counts q=%r fts=%d engram=%d leann=%d merged=%d",
                 query,
                 fts_count,
                 engram_count,
+                leann_count,
                 len(candidates),
             )
 
@@ -505,6 +519,13 @@ class MemoryService:
                 before_ts = None
 
         base_memories: list[Memory] | None = None
+        candidate_ids: set[str] = set()
+
+        if settings.leann_enabled:
+            leann_ids = db.leann_search(query, limit=200, project=project)
+            if leann_ids:
+                candidate_ids.update(leann_ids)
+
         if settings.engram_enabled:
             try:
                 engram_candidates = db.engram_search_candidates(
@@ -517,16 +538,18 @@ class MemoryService:
                 engram_candidates = []
 
             if engram_candidates:
-                candidate_ids = [mid for mid, _ in engram_candidates]
-                base_memories = db.get_memories_by_ids(
-                    ids=candidate_ids,
-                    project=project,
-                    tags=tags,
-                    after_timestamp=after_ts,
-                    before_timestamp=before_ts,
-                )
-                if not base_memories:
-                    base_memories = None
+                candidate_ids.update(mid for mid, _ in engram_candidates)
+
+        if candidate_ids:
+            base_memories = db.get_memories_by_ids(
+                ids=list(candidate_ids),
+                project=project,
+                tags=tags,
+                after_timestamp=after_ts,
+                before_timestamp=before_ts,
+            )
+            if not base_memories:
+                base_memories = None
 
         if base_memories is None:
             base_memories = db.get_all_memories(
@@ -669,6 +692,9 @@ class MemoryService:
                     reembedded += 1
 
             offset += page_size
+
+        if reembedded:
+            db.leann_dirty = True
 
         logger.info(f"Re-embed completed: scanned={scanned}, reembedded={reembedded}")
         return {"scanned": scanned, "reembedded": reembedded}

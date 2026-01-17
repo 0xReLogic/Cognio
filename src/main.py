@@ -62,6 +62,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.warning("Engram index stats failed: %s", e)
     embedding_service.load_model()
+    if settings.leann_enabled:
+        try:
+            db.maybe_init_leann()
+        except Exception as e:
+            logger.warning("LEANN init failed: %s", e)
 
     # Optionally trigger background re-embedding for mismatched dimensions
     reembed_task = None

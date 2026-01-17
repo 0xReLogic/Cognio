@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     engram_min_hits: int = 2
     engram_query_bucket_limit: int = 500
 
+    # LEANN vector search (optional)
+    leann_enabled: bool = False
+    leann_index_path: str = "./data/leann/memories.leann"
+    leann_backend: str = "hnsw"
+    leann_lazy_build: bool = True
+    leann_recompute_on_search: bool = True
+    leann_warmup_on_start: bool = False
+
     # Performance
     max_text_length: int = 10000
     batch_size: int = 32
