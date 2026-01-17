@@ -446,6 +446,10 @@ class MemoryService:
             ]
             if not cand_mems:
                 return []
+            
+            # Additional safety check for empty arrays
+            if not selected:
+                return []
             m_arr = np.asarray([m.embedding for m in cand_mems], dtype=np.float32)
             q = np.asarray(query_embedding, dtype=np.float32)
             q_norm = q / (np.linalg.norm(q) + 1e-12)
