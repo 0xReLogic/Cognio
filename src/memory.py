@@ -201,6 +201,9 @@ class MemoryService:
                     except Exception as e:
                         logger.warning(f"Engram candidate lookup failed: {e}")
 
+                if not mems_with_emb:
+                    return []
+
                 # Encode memories in batches
                 embeddings = embedding_service.encode_batch([m.text for m in mems_with_emb])
                 sem_scores_all = np.dot(embeddings, query_embedding).astype(np.float32)
