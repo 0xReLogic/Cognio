@@ -54,6 +54,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings.ensure_db_dir()
     db.connect()
     db.backfill_engram_index()
+    if settings.engram_enabled:
+        try:
+            cursor = db.execute("SELECT COUNT(*) AS count FROM engram_index")
+            count = cursor.fetchone()["count"]
+            logger.info("Engram index ready: entries=%s", count)
+        except Exception as e:
+            logger.warning("Engram index stats failed: %s", e)
     embedding_service.load_model()
 
     # Optionally trigger background re-embedding for mismatched dimensions
