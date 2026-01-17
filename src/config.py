@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     hybrid_mode: str = "candidate"  # candidate | rerank
     hybrid_rerank_topk: int = 100
 
+    # Engram O(1) retrieval (hashed N-gram index)
+    engram_enabled: bool = True
+    engram_ngram_sizes: str = "2,3"
+    engram_num_heads: int = 4
+    engram_num_buckets: int = 1000003
+    engram_candidate_limit: int = 200
+    engram_min_hits: int = 2
+    engram_query_bucket_limit: int = 500
+
     # Performance
     max_text_length: int = 10000
     batch_size: int = 32

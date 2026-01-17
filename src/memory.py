@@ -237,6 +237,28 @@ class MemoryService:
             # 1) Get FTS candidates (id, bm25 rank), lower rank is better
             candidates = db.fts_search_candidates(query=query, project=project, limit=100)
 
+            # Engram hashed n-gram candidates (merge with FTS)
+            engram_candidates: list[tuple[str, int]] = []
+            if settings.engram_enabled:
+                try:
+                    engram_candidates = db.engram_search_candidates(
+                        query=query,
+                        project=project,
+                        limit=getattr(settings, "engram_candidate_limit", 200),
+                    )
+                except Exception as e:
+                    logger.warning(f"Engram candidate lookup failed: {e}")
+
+            if engram_candidates:
+                merged: dict[str, float] = {mid: float(rank) for mid, rank in candidates}
+                for mid, hits in engram_candidates:
+                    rank = 1.0 / max(float(hits), 1.0)
+                    if mid in merged:
+                        merged[mid] = min(merged[mid], rank)
+                    else:
+                        merged[mid] = rank
+                candidates = sorted(merged.items(), key=lambda x: x[1])
+
             after_ts: int | None = None
             before_ts: int | None = None
             if after_date:
@@ -456,16 +478,41 @@ class MemoryService:
             except ValueError:
                 before_ts = None
 
-        all_memories = db.get_all_memories(
-            project=project,
-            tags=tags,
-            after_timestamp=after_ts,
-            before_timestamp=before_ts,
-        )
+        base_memories: list[Memory] | None = None
+        if settings.engram_enabled:
+            try:
+                engram_candidates = db.engram_search_candidates(
+                    query=query,
+                    project=project,
+                    limit=getattr(settings, "engram_candidate_limit", 200),
+                )
+            except Exception as e:
+                logger.warning(f"Engram candidate lookup failed: {e}")
+                engram_candidates = []
+
+            if engram_candidates:
+                candidate_ids = [mid for mid, _ in engram_candidates]
+                base_memories = db.get_memories_by_ids(
+                    ids=candidate_ids,
+                    project=project,
+                    tags=tags,
+                    after_timestamp=after_ts,
+                    before_timestamp=before_ts,
+                )
+                if not base_memories:
+                    base_memories = None
+
+        if base_memories is None:
+            base_memories = db.get_all_memories(
+                project=project,
+                tags=tags,
+                after_timestamp=after_ts,
+                before_timestamp=before_ts,
+            )
 
         emb_dim = embedding_service.embedding_dim
         mems_with_emb = [
-            m for m in all_memories if (m.embedding is not None and len(m.embedding) == emb_dim)
+            m for m in base_memories if (m.embedding is not None and len(m.embedding) == emb_dim)
         ]
         if not mems_with_emb:
             return []

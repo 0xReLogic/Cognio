@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import settings
+from .engram import engram_index
 from .models import Memory
 from .utils import get_timestamp
 
@@ -132,12 +133,147 @@ class Database:
             logger.warning(f"FTS5 not available or initialization failed: {e}")
             self.fts_ready = False
 
+        # Engram hashed n-gram index (best-effort)
+        try:
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS engram_index (
+                    bucket INTEGER NOT NULL,
+                    memory_id TEXT NOT NULL,
+                    hits INTEGER NOT NULL,
+                    PRIMARY KEY (bucket, memory_id)
+                )
+                """
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_engram_bucket ON engram_index(bucket)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_engram_memory ON engram_index(memory_id)"
+            )
+        except sqlite3.OperationalError as e:
+            logger.warning(f"Engram index init failed: {e}")
+
         self.conn.commit()
         logger.info("Database schema initialized")
 
     def has_fts(self) -> bool:
         """Return whether FTS is ready for use."""
         return self.fts_ready
+
+    def backfill_engram_index(self) -> None:
+        """Backfill Engram index for existing memories if empty."""
+        if not settings.engram_enabled:
+            return
+        if self.conn is None:
+            raise RuntimeError(_DB_NOT_CONNECTED_ERROR)
+
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("SELECT COUNT(*) AS count FROM engram_index")
+            count = cursor.fetchone()["count"]
+        except sqlite3.OperationalError as e:
+            logger.warning(f"Engram backfill skipped: {e}")
+            return
+
+        if count and count > 0:
+            return
+
+        logger.info("Engram backfill: rebuilding index for existing memories...")
+        cursor.execute("SELECT id, text FROM memories WHERE archived = 0")
+        rows = cursor.fetchall()
+        for row in rows:
+            memory_id = row["id"]
+            text = row["text"] or ""
+            bucket_counts = engram_index.bucket_counts(text)
+            for bucket, hits in bucket_counts.items():
+                cursor.execute(
+                    """
+                    INSERT INTO engram_index (bucket, memory_id, hits)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(bucket, memory_id) DO UPDATE SET hits = excluded.hits
+                    """,
+                    (int(bucket), memory_id, int(hits)),
+                )
+        self.conn.commit()
+        logger.info("Engram backfill: complete (entries=%s)", len(rows))
+
+    def upsert_engram_index(self, memory_id: str, text: str) -> None:
+        """Upsert Engram hashed n-gram buckets for a memory."""
+        if not settings.engram_enabled or not text:
+            return
+        if self.conn is None:
+            raise RuntimeError(_DB_NOT_CONNECTED_ERROR)
+
+        bucket_counts = engram_index.bucket_counts(text)
+        if not bucket_counts:
+            return
+
+        cursor = self.conn.cursor()
+        for bucket, hits in bucket_counts.items():
+            cursor.execute(
+                """
+                INSERT INTO engram_index (bucket, memory_id, hits)
+                VALUES (?, ?, ?)
+                ON CONFLICT(bucket, memory_id) DO UPDATE SET hits = excluded.hits
+                """,
+                (int(bucket), memory_id, int(hits)),
+            )
+        self.conn.commit()
+
+    def delete_engram_for_ids(self, memory_ids: list[str]) -> None:
+        """Remove Engram buckets for memory IDs."""
+        if not settings.engram_enabled or not memory_ids:
+            return
+        if self.conn is None:
+            raise RuntimeError(_DB_NOT_CONNECTED_ERROR)
+
+        placeholders = ",".join(["?"] * len(memory_ids))
+        self.execute(
+            f"DELETE FROM engram_index WHERE memory_id IN ({placeholders})",
+            tuple(memory_ids),
+        )
+        self.commit()
+
+    def engram_search_candidates(
+        self, query: str, project: str | None = None, limit: int | None = None
+    ) -> list[tuple[str, int]]:
+        """Return candidate memory IDs using Engram hashed n-gram lookup."""
+        if not settings.engram_enabled:
+            return []
+        if self.conn is None:
+            raise RuntimeError(_DB_NOT_CONNECTED_ERROR)
+
+        buckets = engram_index.buckets_for_query(query)
+        if not buckets:
+            return []
+
+        limit = int(limit or getattr(settings, "engram_candidate_limit", 200))
+        min_hits = int(getattr(settings, "engram_min_hits", 2))
+
+        placeholders = ",".join(["?"] * len(buckets))
+        sql = (
+            "SELECT e.memory_id AS id, SUM(e.hits) AS hits "
+            "FROM engram_index e "
+            "JOIN memories m ON m.id = e.memory_id "
+            "WHERE m.archived = 0 AND e.bucket IN ("
+            + placeholders
+            + ")"
+        )
+        params: list[Any] = [*buckets]
+        if project:
+            sql += " AND m.project = ?"
+            params.append(project)
+        sql += " GROUP BY e.memory_id HAVING SUM(e.hits) >= ? ORDER BY hits DESC LIMIT ?"
+        params.extend([min_hits, limit])
+
+        try:
+            cursor = self.execute(sql, tuple(params))
+            rows = cursor.fetchall()
+            return [(row["id"], int(row["hits"])) for row in rows]
+        except sqlite3.OperationalError as e:
+            logger.warning(f"Engram search failed: {e}")
+            return []
 
     def close(self) -> None:
         """Close database connection."""
@@ -183,6 +319,11 @@ class Database:
             ),
         )
         self.commit()
+
+        try:
+            self.upsert_engram_index(memory.id, memory.text)
+        except Exception as e:
+            logger.warning(f"Engram index update failed: {e}")
 
     def get_memory_by_id(self, memory_id: str) -> Memory | None:
         """Retrieve a memory by ID."""
@@ -256,8 +397,14 @@ class Database:
     def delete_memory(self, memory_id: str) -> bool:
         """Delete a memory by ID (hard delete)."""
         cursor = self.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+        deleted = cursor.rowcount > 0
+        if deleted:
+            try:
+                self.delete_engram_for_ids([memory_id])
+            except Exception as e:
+                logger.warning(f"Engram index cleanup failed: {e}")
         self.commit()
-        return cursor.rowcount > 0
+        return deleted
 
     def update_embedding(self, memory_id: str, embedding: list[float]) -> bool:
         """Update embedding vector for a memory and touch updated_at."""
@@ -275,24 +422,41 @@ class Database:
         cursor = self.execute(
             "UPDATE memories SET archived = 1 WHERE id = ? AND archived = 0", (memory_id,)
         )
+        archived = cursor.rowcount > 0
+        if archived:
+            try:
+                self.delete_engram_for_ids([memory_id])
+            except Exception as e:
+                logger.warning(f"Engram index cleanup failed: {e}")
         self.commit()
-        return cursor.rowcount > 0
+        return archived
 
     def bulk_delete(self, project: str | None = None, before_timestamp: int | None = None) -> int:
         """Bulk delete memories (hard delete)."""
-        query = "DELETE FROM memories WHERE 1=1"
+        base = "FROM memories WHERE 1=1"
         params: list[Any] = []
 
         if project:
-            query += _PROJECT_FILTER_SQL
+            base += _PROJECT_FILTER_SQL
             params.append(project)
 
-        if before_timestamp:
-            query += " AND created_at < ?"
+        if before_timestamp is not None:
+            base += " AND created_at < ?"
             params.append(before_timestamp)
 
-        cursor = self.execute(query, tuple(params))
+        ids: list[str] = []
+        if settings.engram_enabled:
+            cursor = self.execute(f"SELECT id {base}", tuple(params))
+            ids = [row["id"] for row in cursor.fetchall()]
+
+        cursor = self.execute(f"DELETE {base}", tuple(params))
         self.commit()
+
+        if ids:
+            try:
+                self.delete_engram_for_ids(ids)
+            except Exception as e:
+                logger.warning(f"Engram index cleanup failed: {e}")
         return cursor.rowcount
 
     def get_memories_by_ids(

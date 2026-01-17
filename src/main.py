@@ -53,6 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting Cognio server...")
     settings.ensure_db_dir()
     db.connect()
+    db.backfill_engram_index()
     embedding_service.load_model()
 
     # Optionally trigger background re-embedding for mismatched dimensions
