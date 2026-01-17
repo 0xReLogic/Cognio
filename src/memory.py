@@ -693,9 +693,6 @@ class MemoryService:
 
             offset += page_size
 
-        if reembedded:
-            db.leann_dirty = True
-
         logger.info(f"Re-embed completed: scanned={scanned}, reembedded={reembedded}")
         return {"scanned": scanned, "reembedded": reembedded}
 

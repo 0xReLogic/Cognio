@@ -104,8 +104,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if settings.leann_enabled and settings.leann_idle_build:
 
         async def idle_leann_builder() -> None:
-            index_path = Path(settings.leann_index_path).expanduser().resolve()
-            meta_path = Path(f"{index_path}.meta.json")
             while True:
                 await asyncio.sleep(settings.leann_idle_check_interval)
                 last_ts = getattr(app.state, "last_request_ts", None)
@@ -117,12 +115,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                     continue
                 if app.state.leann_idle_building:
                     continue
-                if not db.leann_dirty and meta_path.exists():
+
+                project_key = db.next_leann_build_project()
+                if project_key is None:
                     continue
+
+                project_value = None
+                if project_key != db.leann_global_key():
+                    project_value = project_key
+
                 app.state.leann_idle_building = True
                 try:
-                    logger.info("LEANN idle build: starting (idle_for=%.1fs)", idle_for)
-                    built = await asyncio.to_thread(db.build_leann_index)
+                    logger.info(
+                        "LEANN idle build: starting (project=%s idle_for=%.1fs)",
+                        project_value or "global",
+                        idle_for,
+                    )
+                    built = await asyncio.to_thread(db.build_leann_index, project_value)
                     if built:
                         logger.info("LEANN idle build: completed")
                     else:
