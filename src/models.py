@@ -138,6 +138,7 @@ class Memory(BaseModel):
     summary: str | None = None
     text_hash: str
     embedding: list[float] | None = None
+    embedding_dim: int | None = None
     project: str | None = None
     tags: list[str]
     created_at: int
