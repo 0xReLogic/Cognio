@@ -439,7 +439,7 @@ class MemoryService:
             # Additional safety check for empty arrays
             if not selected:
                 return []
-                
+
             emb_dim = embedding_service.embedding_dim
             cand_mems = [
                 m

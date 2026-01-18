@@ -151,9 +151,7 @@ class Database:
                 )
                 """
             )
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_engram_bucket ON engram_index(bucket)"
-            )
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_engram_bucket ON engram_index(bucket)")
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_engram_memory ON engram_index(memory_id)"
             )
@@ -262,9 +260,7 @@ class Database:
             "SELECT e.memory_id AS id, SUM(e.hits) AS hits "
             "FROM engram_index e "
             "JOIN memories m ON m.id = e.memory_id "
-            "WHERE m.archived = 0 AND e.bucket IN ("
-            + placeholders
-            + ")"
+            "WHERE m.archived = 0 AND e.bucket IN (" + placeholders + ")"
         )
         params: list[Any] = [*buckets]
         if project:
@@ -318,9 +314,7 @@ class Database:
         if self.conn is None:
             raise RuntimeError(_DB_NOT_CONNECTED_ERROR)
         if include_none:
-            cursor = self.execute(
-                "SELECT DISTINCT project FROM memories WHERE archived = 0"
-            )
+            cursor = self.execute("SELECT DISTINCT project FROM memories WHERE archived = 0")
         else:
             cursor = self.execute(
                 "SELECT DISTINCT project FROM memories WHERE archived = 0 AND project IS NOT NULL"
@@ -476,10 +470,11 @@ class Database:
             )
             return False
 
-        import numpy as np
         import os
         import pickle
         import tempfile
+
+        import numpy as np
 
         index_path = self._leann_index_path(project)
         index_path.parent.mkdir(parents=True, exist_ok=True)

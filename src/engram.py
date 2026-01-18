@@ -7,7 +7,7 @@ import logging
 import re
 import unicodedata
 from collections import Counter
-from typing import Iterable
+from collections.abc import Iterable
 
 from .config import settings
 
